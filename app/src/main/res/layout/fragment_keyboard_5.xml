@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/btn_U"
+        android:text="U"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:layout_editor_absoluteX="8dp" />
+
+    <Button
+        android:id="@+id/btn_V"
+        android:text="V"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_U"
+        app:layout_constraintLeft_toRightOf="@id/btn_U"
+        tools:layout_editor_absoluteX="192dp" />
+
+    <Button
+        android:id="@+id/btn_W"
+        android:text="W"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_U"
+        app:layout_constraintLeft_toRightOf="@id/btn_V"
+        tools:layout_editor_absoluteX="192dp" />
+
+    <Button
+        android:id="@+id/btn_X"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="X"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_U"
+        app:layout_constraintLeft_toRightOf="@id/btn_W"
+        tools:layout_editor_absoluteX="192dp" />
+
+    <Button
+        android:id="@+id/btn_Y"
+        android:text="Y"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_U"
+        tools:layout_editor_absoluteX="8dp" />
+
+    <Button
+        android:id="@+id/btn_Z"
+        android:text="Z"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@+id/btn_Y"
+        app:layout_constraintLeft_toRightOf="@id/btn_Y"
+        tools:layout_editor_absoluteX="192dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

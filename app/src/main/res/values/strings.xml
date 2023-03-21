@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Wyse60 Emulator</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="action_setup">Setup</string>
+
+    <string name="font_size">Font Size</string>
+    <string name="font_size_key">FontSize</string>
+    <string name="default_font_size">12</string>
+
+    <string name="K1">K1</string>
+    <string name="K2">K2</string>
+    <string name="K3">K3</string>
+    <string name="K4">K4</string>
+    <string name="K5">K5</string>
+
+    <!-- Preference Titles -->
+    <string name="bluetooth_header">Bluetooth</string>
+    <string name="device_header">devices</string>
+
+    <string name="bluetooth_enabled">Bluetooth Enabled</string>
+    <string name="device_visible">Device Visible</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails
+    </string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Sync</string>
+</resources>
