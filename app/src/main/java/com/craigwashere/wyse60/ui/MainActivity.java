@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.ui;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -13,6 +13,7 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.databinding.DataBindingUtil;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager.widget.ViewPager;
@@ -26,23 +27,26 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ToggleButton;
 
-import com.craigwashere.Wyse60.R;
+import com.craigwashere.wyse60.util.BluetoothConnectionService;
+import com.craigwashere.wyse60.util.CustomPagerAdapter;
+import com.craigwashere.wyse60.R;
+import com.craigwashere.wyse60.data.User;
+import com.craigwashere.wyse60.databinding.ActivityMainBinding;
+import com.craigwashere.wyse60.util.wyse60_TextView;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-
-
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener
 {
     final static String TAG = "MainActivity";
-    wyse60_TextView main_text;
+   // wyse60_TextView main_text;
 
-   // ScreenBuffer main_text;
+    //simple Data binding to textView
+    User user;
 
+    // ScreenBuffer main_text;
     float font_size = 8.5f;
-
     BluetoothConnectionService m_bluetooth_connection;
     private static final UUID MY_UUID_INSECURE =
             UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
@@ -73,6 +77,11 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        user = new User("JJJJ");
+        ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+
+        binding.setViewmodel(user);
 
         m_bluetooth_connection = new BluetoothConnectionService(this);
         PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
@@ -117,7 +126,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             }
         });
 
-        main_text = this.<wyse60_TextView>findViewById(R.id.main_view);
+//        main_text = this.<wyse60_TextView>findViewById(R.id.main_view);
+
+
 
 //        main_text.setSpannableFactory(new Spannable.Factory(){
 //            @Override
@@ -125,8 +136,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 //                return (Spannable) source;
 //            }
 //        });
-        /*Keep in mind, it should be set from ViewHolder's constructor, not onBindViewHolder.
-        When you get reference to it by findViewById.*/
+//        Keep in mind, it should be set from ViewHolder's constructor, not onBindViewHolder.
+//        When you get reference to it by findViewById.
 
 
         ViewPager vp_keyboard_pager = (ViewPager) findViewById(R.id.vp_keyboard_area);
@@ -198,7 +209,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         @Override
         public void onReceive(Context context, Intent intent) {
             char[] text = intent.getStringExtra("theMessage").toCharArray();
-            main_text.setText(text);
+            //main_text.setText(text);
         }
     };
 
@@ -262,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
         Log.d(TAG, "onResume: minsize: " + minSize);
 
-        main_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, minSize);
+        //main_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, minSize);
     }
 
     @Override
@@ -275,7 +286,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
         Log.d(TAG, "onSharedPreferenceChanged: minsize: " + minSize);
         //main_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, minSize);
-        main_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, minSize);
 
         Log.d(TAG, "onSharedPreferenceChanged: exit");
     }
@@ -325,8 +335,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             {
                 String  device_name = data.getStringExtra("DEVICE_NAME"),
                         device_addr = data.getStringExtra("DEVICE_ADDRESS");
-                main_text.append("device name: " + device_name + '\n');
-                main_text.append("device address: " + device_addr + '\n');
+                //main_text.append("device name: " + device_name + '\n');
+                //main_text.append("device address: " + device_addr + '\n');
 
                 BluetoothAdapter m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
                 BluetoothDevice m_bluetooth_device = m_bluetooth_adapter.getRemoteDevice(data.getStringExtra("DEVICE_ADDRESS"));

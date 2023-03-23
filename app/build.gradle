@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 33
     defaultConfig {
-        applicationId "com.craigwashere.Wyse60"
+        applicationId "com.craigwashere.wyse60"
         minSdkVersion 16
         targetSdkVersion 33
         versionCode 1
@@ -16,7 +16,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    namespace 'com.craigwashere.Wyse60'
+    buildFeatures {
+        dataBinding true
+    }
+    namespace 'com.craigwashere.wyse60'
 }
 
 dependencies {

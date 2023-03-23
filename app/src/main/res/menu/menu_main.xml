@@ -1,7 +1,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.craigwashere.Wyse60.MainActivity">
+    tools:context="com.craigwashere.wyse60.ui.MainActivity">
     <item
         android:id="@+id/action_setup"
         android:orderInCategory="100"

@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.util;
 
 import android.content.Context;
 import android.content.Intent;
@@ -11,12 +11,12 @@ import android.widget.Button;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.viewpager.widget.PagerAdapter;
 
-import com.craigwashere.Wyse60.R;
+import com.craigwashere.wyse60.R;
 
 import java.util.ArrayList;
 import java.util.List;
 
-class CustomPagerAdapter extends PagerAdapter implements View.OnClickListener
+public class CustomPagerAdapter extends PagerAdapter implements View.OnClickListener
 {
     private static final String TAG = "CustomPagerAdapter ";
     private Context mContext;

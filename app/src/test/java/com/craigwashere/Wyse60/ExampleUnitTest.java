@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60;
 
 import org.junit.Test;
 

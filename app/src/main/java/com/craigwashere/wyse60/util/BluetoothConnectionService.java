@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.util;
 
 //import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -17,7 +17,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-import static com.craigwashere.Wyse60.MainActivity.TAG;
+//import static com.craigwashere.Wyse60.ui.MainActivity.TAG;
 
 public class BluetoothConnectionService
 {
@@ -29,7 +29,7 @@ public class BluetoothConnectionService
     private int mState;
     private int mNewState;
 
-    //    private static final String TAG = "BluetoothConnService";
+        private static final String TAG = "BluetoothConnService";
     private static final String appName = "MYAPP";
     private static final UUID MY_UUID_INSECURE =
             UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");

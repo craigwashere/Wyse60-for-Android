@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.util;
 
 import android.content.Context;
 import android.content.Intent;

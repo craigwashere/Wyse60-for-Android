@@ -1,6 +1,6 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.util;
 
-import com.craigwashere.Wyse60.R;
+import com.craigwashere.wyse60.R;
 
 public enum ModelObject
 {

@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.util;
 
 import android.text.SpannableStringBuilder;
 import android.util.Log;

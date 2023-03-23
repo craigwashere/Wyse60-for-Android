@@ -21,16 +21,16 @@
         android:theme="@style/AppTheme">
 
         <activity
-            android:name=".SettingsActivity"
+            android:name=".ui.SettingsActivity"
             android:label="@string/title_activity_settings"
-            android:parentActivityName=".MainActivity">
+            android:parentActivityName=".ui.MainActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.craigwashere.Wyse60.MainActivity" />
+                android:value="com.craigwashere.wyse60.ui.MainActivity" />
         </activity>
-        <activity android:name=".SetupActivity" />
+        <activity android:name=".ui.SetupActivity" />
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.MainActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar"
             android:exported="true">

@@ -1,25 +1,104 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<layout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
-
-    <com.google.android.material.appbar.AppBarLayout
+    >
+    <data>
+        <variable name="viewmodel"
+            type="com.craigwashere.wyse60.data.User"
+            />
+    </data>
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/AppTheme.AppBarOverlay">
+        android:layout_height="match_parent"
+        tools:context=".ui.MainActivity">
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:popupTheme="@style/AppTheme.PopupOverlay" />
+            android:layout_height="wrap_content"
+            android:theme="@style/AppTheme.AppBarOverlay">
 
-    </com.google.android.material.appbar.AppBarLayout>
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="?attr/colorPrimary"
+                app:popupTheme="@style/AppTheme.PopupOverlay" />
 
-    <include layout="@layout/content_main" />
+        </com.google.android.material.appbar.AppBarLayout>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            tools:context=".ui.MainActivity"
+            tools:showIn="@layout/activity_main">
+
+            <TextView
+                android:text="@{viewmodel.name}"
+                android:id="@+id/main_view"
+                android:layout_width="350dip"
+                android:layout_height="350dp"
+                android:background="@drawable/border"
+                android:breakStrategy="simple"
+                android:ems="80"
+                android:fontFamily="@font/ubuntumono_r"
+                android:inputType="text|textMultiLine"
+                android:lines="42"
+                android:singleLine="false"
+                android:textSize="7sp"
+                android:typeface="monospace"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="SpeakableTextPresentCheck" />
+
+            <androidx.viewpager.widget.ViewPager
+                android:id="@+id/vp_keyboard_area"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                app:layout_constraintTop_toBottomOf="@id/main_view"
+                tools:ignore="SpeakableTextPresentCheck"
+                tools:layout_editor_absoluteX="8dp" />
+
+            <Button
+                android:id="@+id/btn_escape"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:text="Escape"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <ToggleButton
+                android:id="@+id/btn_CTRL"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textOff="CTRL"
+                android:textOn="CTRL"
+                app:layout_constraintBottom_toBottomOf="@+id/btn_escape"
+                app:layout_constraintLeft_toRightOf="@+id/btn_escape" />
+
+            <ToggleButton
+                android:id="@+id/btn_SHIFT"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textOff="SHIFT"
+                android:textOn="SHIFT"
+                app:layout_constraintBottom_toBottomOf="@+id/btn_escape"
+                app:layout_constraintLeft_toRightOf="@id/btn_CTRL" />
+
+            <ToggleButton
+                android:id="@+id/btn_ALT"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textOff="ALT"
+                android:textOn="ALT"
+                app:layout_constraintBottom_toBottomOf="@+id/btn_escape"
+                app:layout_constraintLeft_toRightOf="@id/btn_SHIFT"/>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+</layout>

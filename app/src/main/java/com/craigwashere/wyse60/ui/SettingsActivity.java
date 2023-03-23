@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.ui;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
-import com.craigwashere.Wyse60.R;
+import com.craigwashere.wyse60.R;
 
 public class SettingsActivity extends AppCompatActivity {
 

@@ -1,4 +1,4 @@
-package com.craigwashere.Wyse60;
+package com.craigwashere.wyse60.ui;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -21,7 +21,8 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.craigwashere.Wyse60.R;
+import com.craigwashere.wyse60.util.DeviceListAdapter;
+import com.craigwashere.wyse60.R;
 
 import java.util.ArrayList;
 import java.util.Set;
