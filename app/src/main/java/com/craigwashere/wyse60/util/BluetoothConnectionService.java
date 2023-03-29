@@ -1,6 +1,7 @@
 package com.craigwashere.wyse60.util;
 
 //import android.app.ProgressDialog;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
@@ -84,6 +85,7 @@ public class BluetoothConnectionService
         private final BluetoothServerSocket mmServerSocket;
         private String mSocketType;
 
+        @SuppressLint("MissingPermission")
         public AcceptThread(boolean secure)
         {
             BluetoothServerSocket tmp = null;
@@ -161,6 +163,7 @@ public class BluetoothConnectionService
             deviceUUID = uuid;
         }
 
+        @SuppressLint("MissingPermission")
         public void run()
         {
             Log.d(TAG, "run: mConnectThread");

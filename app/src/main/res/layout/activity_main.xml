@@ -5,8 +5,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     >
     <data>
-        <variable name="viewmodel"
-            type="com.craigwashere.wyse60.data.User"
+        <variable name="userviewmodel"
+            type="com.craigwashere.wyse60.data.UserViewModel"
             />
     </data>
     <androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -24,6 +24,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="?attr/colorPrimary"
+                android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
                 app:popupTheme="@style/AppTheme.PopupOverlay" />
 
         </com.google.android.material.appbar.AppBarLayout>
@@ -36,7 +37,7 @@
             tools:showIn="@layout/activity_main">
 
             <TextView
-                android:text="@{viewmodel.name}"
+                android:text="@{userviewmodel.name}"
                 android:id="@+id/main_view"
                 android:layout_width="350dip"
                 android:layout_height="350dp"

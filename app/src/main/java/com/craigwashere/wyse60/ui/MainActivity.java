@@ -14,6 +14,8 @@ import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.databinding.DataBindingUtil;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager.widget.ViewPager;
@@ -25,13 +27,16 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import com.craigwashere.wyse60.data.UserViewModel;
 import com.craigwashere.wyse60.util.BluetoothConnectionService;
 import com.craigwashere.wyse60.util.CustomPagerAdapter;
 import com.craigwashere.wyse60.R;
 import com.craigwashere.wyse60.data.User;
 import com.craigwashere.wyse60.databinding.ActivityMainBinding;
+import com.craigwashere.wyse60.util.CustomReceiver;
 import com.craigwashere.wyse60.util.wyse60_TextView;
 
 import java.util.ArrayList;
@@ -42,7 +47,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     final static String TAG = "MainActivity";
    // wyse60_TextView main_text;
 
-    //simple Data binding to textView
     User user;
 
     // ScreenBuffer main_text;
@@ -74,14 +78,28 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+
+        //user = new User("JJJJ");
+        TextView main_text = findViewById(R.id.main_view);
+
+        UserViewModel userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
+        ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        binding.setUserviewmodel(userViewModel);
+        binding.setLifecycleOwner(this);
+
+        userViewModel.getName().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(String name) {
+                Log.d(TAG, "onChanged: ");
+
+            }
+        });
+
+        CustomReceiver mCustomReceiver = new CustomReceiver(userViewModel);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mCustomReceiver, new IntentFilter("Incoming_Message"));
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        user = new User("JJJJ");
-        ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-
-        binding.setViewmodel(user);
 
         m_bluetooth_connection = new BluetoothConnectionService(this);
         PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
@@ -126,10 +144,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             }
         });
 
-//        main_text = this.<wyse60_TextView>findViewById(R.id.main_view);
-
-
-
 //        main_text.setSpannableFactory(new Spannable.Factory(){
 //            @Override
 //            public Spannable newSpannable(CharSequence source) {
@@ -143,8 +157,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         ViewPager vp_keyboard_pager = (ViewPager) findViewById(R.id.vp_keyboard_area);
         vp_keyboard_pager.setAdapter(new CustomPagerAdapter(this));
 
-        LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
-
+        //LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("send_character"));
 
         //Broadcasts when bond state changes (ie:pairing)
@@ -210,6 +223,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         public void onReceive(Context context, Intent intent) {
             char[] text = intent.getStringExtra("theMessage").toCharArray();
             //main_text.setText(text);
+//            user.setName(String.valueOf(text));
         }
     };
 
