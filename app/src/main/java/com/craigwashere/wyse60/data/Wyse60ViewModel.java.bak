@@ -1,0 +1,36 @@
+package com.craigwashere.wyse60.data;
+
+import android.text.Spannable;
+import android.util.Log;
+
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
+
+import com.craigwashere.wyse60.util.Wyse60;
+
+public class Wyse60ViewModel extends ViewModel
+{
+    final static String TAG = "UserViewModel";
+    public MutableLiveData<Spannable> text;
+    private Wyse60 _text;
+    public Wyse60ViewModel()
+    {
+        Log.d(TAG, "UserViewModel(): ");
+        text = new MutableLiveData<>();
+        _text = new Wyse60();
+    }
+
+    public MutableLiveData<Spannable> getText()
+    {
+        Log.d(TAG, "getUser: ");
+        if (this.text == null)
+            this.text = new MutableLiveData<>();
+
+        return this.text;
+    }
+
+    public Spannable decode_text(char[] text)
+    {
+        return _text.setText(text);
+    }
+}

@@ -5,14 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import com.craigwashere.wyse60.data.User;
-import com.craigwashere.wyse60.data.UserViewModel;
+import com.craigwashere.wyse60.data.Wyse60ViewModel;
 
 public class CustomReceiver extends BroadcastReceiver
 {
     final static String TAG = "CustomReceiver";
-    private final UserViewModel mViewModel;
-    public CustomReceiver(UserViewModel viewModel)
+    private final Wyse60ViewModel mViewModel;
+    public CustomReceiver(Wyse60ViewModel viewModel)
     {
         this.mViewModel = viewModel;
     }
@@ -22,11 +21,11 @@ public class CustomReceiver extends BroadcastReceiver
     {
         char[] text = intent.getStringExtra("theMessage").toCharArray();
 
-        String debug_string = "";
+        StringBuilder debug_string = new StringBuilder();
         for (char c: text)
-            debug_string += Integer.toHexString(c) + ' ';
+            debug_string.append(Integer.toHexString(c)).append(' ');
 
-        mViewModel.getName().postValue("theMessage: " + debug_string + '.');
+        mViewModel.getText().postValue(mViewModel.decode_text(text));
         Log.d(TAG, "onReceive: " + debug_string);
     }
 }

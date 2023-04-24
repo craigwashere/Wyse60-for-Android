@@ -2,23 +2,31 @@ package com.craigwashere.wyse60.util;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.Rect;
+import android.graphics.Typeface;
+import android.icu.text.Edits;
 import android.os.Handler;
 import android.text.Spannable;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
-import android.text.style.BackgroundColorSpan;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.UnderlineSpan;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.View;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Queue;
 
-public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView{
-    private static final String TAG = "wyse60_TextView";
+import io.reactivex.rxjava3.subjects.PublishSubject;
+
+public class Wyse60view extends View
+{
+    private static final String TAG = "Wyse60";
     private Context mContext;
 
     enum _mode {
@@ -41,7 +49,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                                 T_GRAPHICS = 512;
 
     _mode mode = _mode.E_NORMAL;
-    int screenWidth, screenHeight, originalWidth, originalHeight;
+    int screenWidth = 80, screenHeight = 42, originalWidth, originalHeight;
     int needsReset, needsClearingBuffers, isPrinting;
     int _protected, writeProtection, currentAttributes;
     int normalAttributes, protectedAttributes = T_REVERSE;
@@ -50,34 +58,97 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
     int changedDimensions, targetColumn, targetRow;
     int custom_display_attributes = 0;
 
+    boolean connected;
     ScreenBuffer currentBuffer;
 
-    ArrayList<ArrayList<ScreenBuffer>> screenBuffer;
+    float write_pos_x, write_pos_y;
+    int char_pos_x, char_pos_y;
 
+    private String drawText = "craig was here";
+    Paint mPaintText;
+    Queue<String> message_queue;
+    float text_size = 24F, text_spacing = 0F;
+    float font_width = 11.0F, font_height = 20.0F;
+    public void setTextSize(int value)
+    {
+        text_size = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            (float)value, getResources().getDisplayMetrics()
+        );
+        invalidate();
+    }
+    public void setTextSpacing(float value)
+    {
+        text_spacing = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            (float)value, getResources().getDisplayMetrics()
+        );
+        invalidate();
+    }
+    public void  setText2(String text)
+    {
+        message_queue.add(text);
+//        drawText = text;
+
+          invalidate();
+    }
+    private PublishSubject<MyEvent> eventSubject = PublishSubject.create();
+    public void publishEvent(MyEvent event) 
+    {
+        Log.d(TAG, "publishEvent: ");
+        eventSubject.onNext(event);
+    }
     String debug_string = "";
 
-    public wyse60_TextView(Context context)
+    public Wyse60view(Context context)
     {
         super(context);
         Log.d(TAG, "wyse60_TextView: (Context context)");
         currentBuffer = new ScreenBuffer();
+
+        mPaintText.setColor(Color.GREEN);
     }
 
-    public wyse60_TextView(Context context, AttributeSet attrs)
+    public Wyse60view(Context context, AttributeSet attrs)
     {
         super(context, attrs);
+        connected = false;
         Log.d(TAG, "wyse60_TextView: (Context context, AttributeSet attrs)");
         currentBuffer = new ScreenBuffer();
-//        setTypeface(Typeface.MONOSPACE);
+
+        message_queue = new LinkedList<>();
+
+        mPaintText = new Paint();
+        mPaintText.setColor(Color.GREEN);
+
+        mPaintText.setTextSize(text_size);
+        mPaintText.setTypeface(Typeface.MONOSPACE);
+
+        write_pos_x = 0F;
+        write_pos_y = font_height;
+        char_pos_x = 0;
+        char_pos_y = 0;
     }
 
-    public wyse60_TextView(Context context, AttributeSet attrs, int defStyleAttr)
+    public Wyse60view(Context context, AttributeSet attrs, int defStyleAttr)
     {
         super(context, attrs, defStyleAttr);
         Log.d(TAG, "wyse60_TextView: (Context context, AttributeSet attrs, int defStyleAttr)");
         currentBuffer = new ScreenBuffer();
+
+        mPaintText.setColor(Color.GREEN);
     }
 
+//    public void Wyse60()
+//    {
+//        super();
+//        currentBuffer = new ScreenBuffer();
+//    }
+
+    public Spannable getText()
+    {
+        return currentBuffer.lineBuffer;
+    }
     public void logDecode(String format, Object... args)
     {
         debug_string += String.format(format, args);
@@ -99,7 +170,6 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
         attributes &= T_ALL;
         protectedPersonality = attributes;
         updateAttributes();
-        return;
     }
 
     public void updateAttributes()
@@ -142,10 +212,14 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
 
     public void sendUserInput(int pty, String message, int message_length)
     {
+        Log.d(TAG, "sendUserInput: ");
+        //publishEvent(new MyEvent(message));
+
         Log.d(TAG, "sendUserInput: message: "+ message);
         Intent intent = new Intent("send_character");
         intent.putExtra("message", message);
         LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
+
     }
 
     public void setWriteProtection(int flag) {
@@ -165,21 +239,23 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
         //currentBuffer->maximumHeight = 42;
         //currentBuffer->maximumWidth = 80;
 
-        currentBuffer.clear_screen(attributes, fillChar);
+        currentBuffer.clear_screen(fillChar);
 
         logDecode("fillScreen: attributes=%d, fillChar=%c", attributes, fillChar);
     }
 
-    public void clearScreen()
+    public void clearScreen(Canvas canvas)
     {
-        fillScreen(T_NORMAL, ' ');
-
-        currentBuffer.attribute_index = -1;
-        currentBuffer.attributes.clear();
+        Log.d(TAG, "clearScreen: ");
+        canvas.drawColor(Color.WHITE, PorterDuff.Mode.CLEAR);
+//        fillScreen(T_NORMAL, ' ');
+//
+//        currentBuffer.attribute_index = -1;
+//        currentBuffer.attributes.clear();
     }
 
-    public void _moveScreenBuffer(ScreenBuffer screenBuffer, int x1, int y1, int x2, int y2,
-                           int dx, int dy)
+    public void _moveScreenBuffer(ScreenBuffer screenBuffer, float x1, float y1, float x2, float y2,
+                                  float dx, float dy)
     {   }
 
     public void _clearScreenBuffer(ScreenBuffer screenBuffer,int x1, int y1, int x2, int y2,
@@ -219,8 +295,8 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
     }
 
     public void moveScreenBuffer(ScreenBuffer screenBuffer,
-                          int x1, int y1, int x2, int y2,
-                          int dx, int dy)
+                                 float x1, float y1, float x2, float y2,
+                                 float dx, float dy)
     {
         clearExcessBuffers();
         _moveScreenBuffer(screenBuffer, x1, y1, x2, y2, dx, dy);
@@ -228,24 +304,28 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
 
     public void gotoXY(int x, int y)
     {
-        //logDecode("gotoXY: x=%d, y=%d", x, y);
-        currentBuffer.cursorX = x;
-        currentBuffer.cursorY = y;
-
-        int found_attribute = currentBuffer.find_attribute(x, y);
-        if (found_attribute > 0)
-        {
-            _attributes attribute_to_delete = currentBuffer.attributes.get(found_attribute);
-            Spannable s = currentBuffer.lineBuffer.get(y);
-            Object[] objs = s.getSpans(attribute_to_delete.get_startX(),
-                    attribute_to_delete.get_startX()+attribute_to_delete.get_effect_length(), Object.class );
-
-           // Log.d(TAG, "gotoXY: objs: " + objs.length);
-            for (Object obj : objs) s.removeSpan(obj);
-
-            currentBuffer.attributes.remove(found_attribute);
-        }
-
+        logDecode("gotoXY: x=%d, y=%d", x, y);
+        char_pos_x = x;
+        char_pos_y = y;
+        write_pos_x = x * font_width;
+        write_pos_y = y * font_height;
+//        currentBuffer.cursorX = x;
+//        currentBuffer.cursorY = y;
+//
+//        int found_attribute = currentBuffer.find_attribute(x, y);
+//        if (found_attribute > 0)
+//        {
+//            _attributes attribute_to_delete = currentBuffer.attributes.get(found_attribute);
+//
+//            int start = (attribute_to_delete.get_startY() * currentBuffer.getMaximumWidth() + attribute_to_delete.get_startX());
+//            Object[] objs = currentBuffer.lineBuffer.getSpans(start,
+//                    attribute_to_delete.get_startX()+attribute_to_delete.get_effect_length(), Object.class );
+//
+//           // Log.d(TAG, "gotoXY: objs: " + objs.length);
+//            for (Object obj : objs) currentBuffer.lineBuffer.removeSpan(obj);
+//
+//            currentBuffer.attributes.remove(found_attribute);
+//        }
     }
 
 
@@ -302,7 +382,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
         logDecode("setPage: page=%d", page);
     }
 
-    public void escape(int pty, char ch)
+    public void escape(int pty, char ch, Canvas canvas)
     {
         logDecode(Character.toString(ch));
         logDecodeFlush();
@@ -314,6 +394,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
             case ' ':   /* Reports the terminal identification                           */
                         logDecode("sendTerminalId()");
                         sendUserInput(pty, "60\r", 3);
+                        connected = true;
                         break;
             case '!':   /* Writes all unprotected character positions with an attribute  */
                         /* not supported: I don't understand this command */
@@ -349,14 +430,14 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         logDecode("clearScreen()");
                         setProtected(0);
                         setWriteProtection(0);
-                        clearScreen();
+                        clearScreen(canvas);
                         break;
             case '+':   /* Clears the screen to spaces; protect submode is turned off   */
                         logDecode("disableProtected() ");
                         logDecode("clearScreen()");
                         setProtected(0);
                         setWriteProtection(0);
-                        clearScreen();
+                        clearScreen(canvas);
                         break;
             case ',':   /* Clears screen to protected spaces; protect submode is turned  */
                         /* off                                                           */
@@ -377,8 +458,8 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
             case '/':   {/* Transmits the active text segment number and cursor address   */
                         /* not supported: text segments */
                         logDecode("sendCursorAddress()");
-                        buffer.format(" %c%c\r", (currentBuffer.cursorY + 32),
-                                (currentBuffer.cursorX + 32));
+                        buffer.format(" %c%c\r", (char_pos_y + 32),
+                                (char_pos_x + 32));
                         sendUserInput(pty, buffer, 4);
                         }
                         break;
@@ -421,19 +502,19 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case ':':   /* Clears all unprotected characters to null                     */
                         logDecode("clearScreen()");
-                        clearScreen();
+                        clearScreen(canvas);
                         break;
             case ';':   /* Clears all unprotected characters to spaces                   */
                         logDecode("clearScreen()");
-                        clearScreen();
+                        clearScreen(canvas);
                         break;
             case '=':   /* Moves cursor to a specified row and column                    */
                         mode = _mode.E_GOTO_ROW_CODE;
                         break;
             case '?':   /* Transmits the cursor address for the active text segment      */
                         logDecode("sendCursorAddress()");
-                        buffer.format("%c%c\r", (currentBuffer.cursorY + 32),
-                                (currentBuffer.cursorX + 32));
+                        buffer.format("%c%c\r", (char_pos_y + 32),
+                                (char_pos_x + 32));
                         sendUserInput(pty, buffer, 3);
                         break;
             case '@':   /* Sends all unprotected characters from start of text to aux    */
@@ -462,7 +543,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
             case 'E':   /* Inserts a row of spaces                                       */
                         logDecode("insertLine()");
                         moveScreenBuffer(currentBuffer,
-                                0, currentBuffer.cursorY,
+                                0, char_pos_y,
                                 logicalWidth() - 1, logicalHeight() - 1,
                                 0, 1);
                         break;
@@ -483,7 +564,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case 'I':   /* Moves cursor left to previous tab stop                        */
                         logDecode("backTab()");
-                        gotoXY((currentBuffer.cursorX - 1) & ~7, currentBuffer.cursorY);
+                        //gotoXY((char_pos_x - 1) & ~7, current_y);
                         break;
             case 'J':   /* Display previous page                                         */
                         logDecode("displayPreviousPage()");
@@ -517,14 +598,14 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
             case 'Q':   /* Inserts a character                                           */
                         logDecode("insertCharacter()");
                         _moveScreenBuffer(currentBuffer,
-                                currentBuffer.cursorX, currentBuffer.cursorY,
-                                logicalWidth() - 1, currentBuffer.cursorY,
+                                char_pos_x, char_pos_y,
+                                logicalWidth() - 1, char_pos_y,
                                 1, 0);
                         break;
             case 'R':   /* Deletes a row                                                 */
                         logDecode("deleteLine()");
                         moveScreenBuffer(currentBuffer,
-                                0, currentBuffer.cursorY + 1,
+                                0, char_pos_y + 1,
                                 logicalWidth() - 1, logicalHeight() - 1,
                                 0, 1);
                         break;
@@ -553,8 +634,8 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
             case 'W':   /* Deletes a character                                           */
                         logDecode("deleteCharacter()");
                         _moveScreenBuffer(currentBuffer,
-                                currentBuffer.cursorX + 1, currentBuffer.cursorY,
-                                logicalWidth() - 1, currentBuffer.cursorY,
+                                char_pos_x + 1, char_pos_y,
+                                logicalWidth() - 1, char_pos_y,
                                 -1, 0);
                         break;
             case 'X':   /* Turns the monitor submode off                                 */
@@ -588,7 +669,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case 'b':   /* Transmits the cursor address to the host                      */
                         logDecode("sendCursorAddress()");
-                        buffer.format("%dR%dC", currentBuffer.cursorY + 1, currentBuffer.cursorX + 1);
+                        buffer.format("%dR%dC", char_pos_y + 1, char_pos_x + 1);
                         sendUserInput(pty, buffer, buffer.length());
                         break;
             case 'c':   /* Set advanced parameters                                       */
@@ -605,11 +686,11 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case 'i':   /* Moves the cursor to the next tab stop on the right            */
                         logDecode("tab()");
-                        gotoXY((currentBuffer.cursorX + 8) & ~7, currentBuffer.cursorY);
+                        //gotoXY((char_pos_x + 8) & ~7, current_y);
                         break;
             case 'j':   /* Moves cursor up one row and scrolls if in top row             */
                         logDecode("moveUpAndScroll()");
-                        gotoXYscroll(currentBuffer.cursorX, currentBuffer.cursorY - 1);
+                        gotoXYscroll(char_pos_x, char_pos_y + 1);
                         break;
             case 'k':   /* Turns local edit submode on                                   */
                         /* not supported: local edit mode */
@@ -685,7 +766,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
         logDecode("displayCurrentScreenBuffer()");
     }
 
-    public void normal(int pty, char ch)
+    public void normal(int pty, char ch, Canvas canvas)
     {
         switch (ch)
         {
@@ -727,8 +808,11 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case 0x05:  /* 0x05  ENQ: Returns ACK, if not busy                              */
                         logDecode("enq()");
-                        char cfgIdentifier = 0x06;
-                        sendUserInput(pty, Character.toString((cfgIdentifier)), 1);
+                        if (connected)
+                        {
+                            char cfgIdentifier = 0x06;
+                            sendUserInput(pty, Character.toString((cfgIdentifier)), 1);
+                        }
                         logDecodeFlush();
                         break;
             case 0x06:  /* 0x06  ACK: No action                                             */
@@ -740,11 +824,11 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         logDecodeFlush();
                         break;
             case 0x08:  /* 0x08 BS:  Move cursor to the left                               */
-                        int x = currentBuffer.cursorX - 1;
-                        int y = currentBuffer.cursorY;
+                        int x = char_pos_x - 1, y = char_pos_y;
                         if (x < 0)
                         {
                             x = logicalWidth() - 1;
+
                             if (--y < 0)
                                 y = 0;
                         }
@@ -754,27 +838,27 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case 0x09:  /* 0x09  HT:  Move to next tab position on the right                */
                         logDecode("tab()");
-                        gotoXY((currentBuffer.cursorX + 8) & ~7, currentBuffer.cursorY);
+                        gotoXY((char_pos_x + 8) & ~7, char_pos_y);
                         logDecodeFlush();
                         break;
             case 0x0a:  /* 0x0A  LF:  Moves cursor down                                     */
-                        logDecode("moveDown()");
-                        gotoXYscroll(currentBuffer.cursorX, currentBuffer.cursorY + 1);
+                        logDecode("moveDown() %d, %d", char_pos_x, char_pos_y);
                         logDecodeFlush();
+                        gotoXYscroll(char_pos_x, char_pos_y + 1);
                         break;
             case 0x0b:  /* 0x0B  VT:  Moves cursor up                                       */
                         logDecode("moveUp()");
-                        gotoXY(currentBuffer.cursorX, (currentBuffer.cursorY - 1 + logicalHeight()) % logicalHeight());
+                        gotoXY(char_pos_x, (char_pos_y - 1 + logicalHeight()) % logicalHeight());
                         logDecodeFlush();
                         break;
             case 0x0c:  /* 0X0C  FF:  Moves cursor to the right                             */
                         logDecode("moveRight()");
-                        gotoXY(currentBuffer.cursorX + 1, currentBuffer.cursorY);
+                        gotoXY(char_pos_x + 1, char_pos_y);
                         logDecodeFlush();
                         break;
             case 0x0d:  /* 0x0D  CR:  Moves cursor to column one                            */
                         logDecode("return()");
-                        gotoXY(0, currentBuffer.cursorY);
+                        gotoXY(0, char_pos_y);
                         logDecodeFlush();
                         break;
             case 0x0e:  /* 0x0E  SO:  Unlocks the keyboard                                  */
@@ -830,7 +914,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             case 0x1a:  /* 0x1A  SUB: Clears all unprotected characters                     */
                         logDecode("clearScreen()");
-                        clearScreen();
+                        clearScreen(canvas);
                         logDecodeFlush();
                         break;
             case 0x1b:  /* 0x1B  ESC: Initiates an escape sequence                          */
@@ -854,7 +938,7 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
             case 0x1f:  /* 0x1F  US:  Moves cursor down one row to column one               */
                         logDecode("moveDown() ");
                         logDecode("return()");
-                        gotoXYscroll(0, currentBuffer.cursorY + 1);
+                        gotoXYscroll(0, char_pos_y + 1);
                         logDecodeFlush();
                         break;
             case 0x7f:  /* 0x7F  DEL: Delete character                                      */
@@ -863,279 +947,299 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
                         break;
             default:
                 String graphicsCharacters = new String("┬└┌┐├┘│█┼┤─▓═┴║▒");
+//                Log.d(TAG, "normal: " + ch);
+
+                char replacing_char = 0;
+                try 
+                {
+                    replacing_char = (graphicsMode == 0)? ch : graphicsCharacters.charAt((int)(ch-'0'));
+                }
+                catch (java.lang.StringIndexOutOfBoundsException e)
+                {
+                    Log.d(TAG, "normal: char out of range: " + ch);
+                }
+                finally {
+//                    Rect textBound = new Rect();
+//                    mPaintText.getTextBounds(String.valueOf(ch), 0, 1, textBound);
+                    canvas.drawText(String.valueOf(replacing_char), write_pos_x, write_pos_y, mPaintText);
+                    char_pos_x++;
+                    write_pos_x += font_width;
+                }
+
 //                if (graphicsMode != 0) {
 //                    ch = enterGraphicsCharacter(ch);
 //                }
-                if (custom_display_attributes == 1)
-                {
-                    _attributes temp = currentBuffer.attributes.get(currentBuffer.attributes.size()-1);
-                    temp.set_effect_length(temp.effect_length+1);
-                }
-
-                logDecode("%c", ch);
+//                if (custom_display_attributes == 1)
+//                {
+//                    _attributes temp = currentBuffer.attributes.get(currentBuffer.attributes.size()-1);
+//                    temp.set_effect_length(temp.effect_length+1);
+//                }
+//
+//                logDecode("%c", ch);
 //                currentBuffer.cursorX %= currentBuffer.maximumWidth;
 //                currentBuffer.cursorY %= currentBuffer.maximumHeight;
-
-                //Log.d(TAG, "normal: pos: " + Integer.toString(currentBuffer.cursorY * currentBuffer.maximumWidth + currentBuffer.cursorX));
+//
+//                Log.d(TAG, "normal: pos: " + Integer.toString(currentBuffer.cursorY * currentBuffer.maximumWidth + currentBuffer.cursorX));
 //                Log.d(TAG, "normal: X: " + currentBuffer.cursorX);
 //                Log.d(TAG, "normal: Y: " + currentBuffer.cursorY);
 
                 //currentBuffer.lineBuffer [(currentBuffer.cursorY * currentBuffer.maximumWidth + currentBuffer.cursorX)] = (graphicsMode == 0)? ch : graphicsCharacters.charAt((int)(ch-'0'));
-
-                currentBuffer.lineBuffer.get(currentBuffer.cursorY).replace(currentBuffer.cursorX, currentBuffer.cursorX+1, Character.toString((graphicsMode == 0)? ch : graphicsCharacters.charAt((int)(ch-'0'))));
-
-                currentBuffer.cursorX++;
-                if (currentBuffer.cursorX >= currentBuffer.maximumWidth)
-                {
-                    currentBuffer.cursorX = 0;
-                    currentBuffer.cursorY++;
-                    if (currentBuffer.cursorY >= currentBuffer.maximumHeight)
-                        currentBuffer.cursorY = 0;
-                }
+//                int pos = (currentBuffer.cursorY * currentBuffer.maximumWidth + currentBuffer.cursorX);
+//                char replacing_char = (graphicsMode == 0)? ch : graphicsCharacters.charAt((int)(ch-'0'));
+//                currentBuffer.lineBuffer.replace(pos, pos+1, String.valueOf(replacing_char));
+//
+//                currentBuffer.cursorX++;
+//                if (currentBuffer.cursorX >= currentBuffer.maximumWidth)
+//                {
+//                    currentBuffer.cursorX = 0;
+//                    currentBuffer.cursorY++;
+//                    if (currentBuffer.cursorY >= currentBuffer.maximumHeight)
+//                        currentBuffer.cursorY = 0;
+//                }
         }
     }
-        public void putGraphics ( char ch)
-        {
-        }
+    public void putGraphics ( char ch)
+    {
+    }
 
-        public void outputCharacter (int pty, char ch)
-        {
-            switch (mode) {
-                case E_GRAPHICS_CHARACTER:
-                    switch (ch)
-                    {
-                        case 0x03:  logDecode("Graphics mode off");
-                            graphicsMode = 0;
-                                    break;
-                        case 0x02:	logDecode("Graphics mode on");
-                            graphicsMode = 1;
-                                    break;
-                        default:	normal(pty, enterGraphicsCharacter(ch));	break;
-                    }
-                    mode = mode.E_NORMAL;
+    public void outputCharacter (int pty, char ch, Canvas canvas)
+    {
+        switch (mode) {
+            case E_GRAPHICS_CHARACTER:
+                switch (ch)
+                {
+                    case 0x03:  logDecode("Graphics mode off");
+                        graphicsMode = 0;
+                                break;
+                    case 0x02:	logDecode("Graphics mode on");
+                        graphicsMode = 1;
+                                break;
+                    default:	normal(pty, enterGraphicsCharacter(ch), canvas);	break;
+                }
+                mode = _mode.E_NORMAL;
 
-                    logDecodeFlush();
-                    break;
-                case E_NORMAL:      normal(pty, ch);
+                logDecodeFlush();
+                break;
+            case E_NORMAL:      normal(pty, ch, canvas);
+                                break;
+            case E_ESC:         escape(pty, ch, canvas);
+                                break;
+            case E_SKIP_ONE:    mode = _mode.E_NORMAL;
+                                logDecode(" 0x" + Integer.toHexString(ch) + " ]");
+                                break;
+            case E_SKIP_LINE:   if (ch == '\r')
+                                {
+                                    logDecode(" ]");
+                                    logDecodeFlush();
+                                    mode = _mode.E_NORMAL;
+                                }
+                                else
+                                    logDecode(" " + Integer.toHexString(ch));
+                                break;
+            case E_SKIP_DEL:    if (ch == '\177' || ch == '\r')
+                                {
+                                    logDecode(" ]");
+                                    logDecodeFlush();
+                                    mode = _mode.E_NORMAL;
+                                }
+                                else
+                                    logDecode(" " + Integer.toHexString(ch));
+                                break;
+            case E_FILL_SCREEN: logDecode("fillScreen(0x" + Integer.toHexString(ch));
+                                fillScreen(T_NORMAL, ch);
+                                break;
+            case E_GOTO_SEGMENT:        /* not supported: text segments */
+                                mode = _mode.E_GOTO_ROW_CODE;
+                                break;
+            case E_GOTO_ROW_CODE:   targetRow = (((int) ch) & 0xFF) - 32;
+                                    Log.d(TAG, "outputCharacter: row: " + targetRow);
+                                    mode = _mode.E_GOTO_COLUMN_CODE;
                                     break;
-                case E_ESC:         escape(pty, ch);
-                                    break;
-                case E_SKIP_ONE:    mode = _mode.E_NORMAL;
-                                    logDecode(" 0x" + Integer.toHexString(ch) + " ]");
-                                    break;
-                case E_SKIP_LINE:   if (ch == '\r')
-                                    {
-                                        logDecode(" ]");
-                                        logDecodeFlush();
+            case E_GOTO_COLUMN_CODE:    Log.d(TAG, "outputCharacter: col: " + ((((int) ch) & 0xFF) - 32));
                                         mode = _mode.E_NORMAL;
-                                    }
-                                    else
-                                        logDecode(" " + Integer.toHexString(ch));
-                                    break;
-                case E_SKIP_DEL:    if (ch == '\177' || ch == '\r')
-                                    {
-                                        logDecode(" ]");
-                                        logDecodeFlush();
-                                        mode = _mode.E_NORMAL;
-                                    }
-                                    else
-                                        logDecode(" " + Integer.toHexString(ch));
-                                    break;
-                case E_FILL_SCREEN: logDecode("fillScreen(0x" + Integer.toHexString(ch));
-                                    fillScreen(T_NORMAL, ch);
-                                    break;
-                case E_GOTO_SEGMENT:        /* not supported: text segments */
-                                    mode = _mode.E_GOTO_ROW_CODE;
-                                    break;
-                case E_GOTO_ROW_CODE:   targetRow = (((int) ch) & 0xFF) - 32;
-                                        //Log.d(TAG, "outputCharacter: row: " + targetRow);
-                                        mode = _mode.E_GOTO_COLUMN_CODE;
-                                        break;
-                case E_GOTO_COLUMN_CODE:    //Log.d(TAG, "outputCharacter: col: " + ((((int) ch) & 0xFF) - 32));
-                                            mode = _mode.E_NORMAL;
-                                            gotoXY((((int) ch) & 0xFF) - 32, targetRow);
-                                            logDecodeFlush();
-                                            break;
-                case E_GOTO_ROW:    if (ch == 'R')
-                                        mode = _mode.E_GOTO_COLUMN;
-                                    else
-                                        targetRow = 10 * targetRow + (((int) (ch - '0')) & 0xFF);
-                                    break;
-                case E_GOTO_COLUMN: if (ch == 'C')
-                                    {
-                                        //logDecode("gotoXY(%d,%d)", targetColumn - 1, targetRow - 1);
-                                        gotoXY(targetColumn - 1, targetRow - 1);
-                                        mode = _mode.E_NORMAL;
-                                        logDecodeFlush();
-                                    } else
-                                        targetColumn = 10 * targetColumn + (((int) (ch - '0')) & 0xFF);
-                                    break;
-                case E_SET_FIELD_ATTRIBUTE: if (ch != '0')
-                                            {
-                                                /* not supported: attributes for non-display areas */
-                                                logDecode("NOT SUPPORTED [ 0x1B 0x41 0x02", ch);
-                                                mode = _mode.E_SKIP_ONE;
-                                            } else
-                                                mode = _mode.E_SET_ATTRIBUTE;
-                                            break;
-                case E_SET_ATTRIBUTE:   logDecode("setAttribute(%s%s%s%s%s%s)",
-                                                ((ch & T_ALL) == T_NORMAL)          ? " NORMAL"     : "",
-                                                (((ch & T_ALL) & T_REVERSE) != 0)   ? " REVERSE"    : "",
-                                                (((ch & T_ALL) & T_DIM) != 0)       ? " DIM"        : "",
-                                                (((ch & T_ALL) & T_UNDERSCORE) != 0)? " UNDERSCORE" : "",
-                                                (((ch & T_ALL) & T_BLINK) != 0)     ? " BLINK"      : "",
-                                                (((ch & T_ALL) & T_BLANK) != 0)     ? " BLANK"      : "");
-                                        setAttributes(ch);
-                                        custom_display_attributes = 1;
-                                        mode = _mode.E_NORMAL;
+                                        gotoXY((((int) ch) & 0xFF) - 32, targetRow);
                                         logDecodeFlush();
                                         break;
-                case E_SET_FEATURES:
-                    switch (ch)
-                    {
-                        case '0':   /* Cursor display off                                          */
-                                    showCursor(0);
-                                    logDecode("hideCursor()");
-                                    break;
-                        case '1':   /* Cursor display on                                           */
-                        case '2':   /* Steady block cursor                                         */
-                        case '5':   /* Blinking block cursor                                       */
-                                    showCursor(1);
-                                    logDecode("showCursor()");
-                                    break;
-                        case '3':   /* Blinking line cursor                                        */
-                        case '4':   /* Steady line cursor                                          */
-                                    showCursor(1);
-                                    logDecode("dimCursor()");
-                                    break;
-                        case '6':   /* Reverse protected character                                 */
-                                    setFeatures(T_REVERSE);
-                                    logDecode("reverseProtectedCharacters()");
-                                    break;
-                        case '7':   /* Dim protected character                                     */
-                                    setFeatures(T_DIM);
-                                    logDecode("dimProtectedCharacters()");
-                                    break;
-                        case '8':   /* Screen display off                                          */
-                        case '9':   /* Screen display on                                           */
-                                    /* not supported: disabling screen display */
-                                    logDecode("NOT SUPPORTED [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
-                                    break;
-                        case ':':       /* 80 column mode                                              */
-                                    requestNewGeometry(pty, 80, currentBuffer.getMaximumHeight());
-                        case ';':       /* 132 column mode                                             */
-                                    requestNewGeometry(pty, 132, currentBuffer.getMaximumHeight());
-                                    break;
-                        case '<': /* Smooth scroll at one row per second                         */
-                        case '=': /* Smooth scroll at two rows per second                        */
-                        case '>': /* Smooth scroll at four rows per second                       */
-                        case '?': /* Smooth scroll at eight rows per second                      */
-                        case '@': /* Jump scroll                                                 */
-                                    /* not supported: selecting scroll speed */
-                                    logDecode("NOT SUPPORTED [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
-                                    break;
-                        case 'A':       /* Normal protected character                                  */
-                                    setFeatures(T_NORMAL);
-                                    logDecode("normalProtectedCharacters()");
-                                    break;
-                        default:    logDecode("UNKNOWN FEATURE [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
-                                    break;
-                    }
-                    mode = _mode.E_NORMAL;
-                    logDecodeFlush();
-                    break;
-                case E_FUNCTION_KEY:    logDecode("NOT SUPPORTED [ 0x1B 0x5A 0x" + Integer.toHexString(ch)+ " ]");
-                                        if (ch == '~')
+            case E_GOTO_ROW:    if (ch == 'R')
+                                    mode = _mode.E_GOTO_COLUMN;
+                                else
+                                    targetRow = 10 * targetRow + (((int) (ch - '0')) & 0xFF);
+                                break;
+            case E_GOTO_COLUMN: if (ch == 'C')
+                                {
+                                    //logDecode("gotoXY(%d,%d)", targetColumn - 1, targetRow - 1);
+                                    gotoXY(targetColumn - 1, targetRow - 1);
+                                    mode = _mode.E_NORMAL;
+                                    logDecodeFlush();
+                                } else
+                                    targetColumn = 10 * targetColumn + (((int) (ch - '0')) & 0xFF);
+                                break;
+            case E_SET_FIELD_ATTRIBUTE: if (ch != '0')
                                         {
-                                            /* not supported: programming function keys */
+                                            /* not supported: attributes for non-display areas */
+                                            logDecode("NOT SUPPORTED [ 0x1B 0x41 0x02", ch);
                                             mode = _mode.E_SKIP_ONE;
-                                        } else {
-                                            /* not supported: programming function keys */
-                                            mode = _mode.E_SKIP_DEL;
-                                        }
+                                        } else
+                                            mode = _mode.E_SET_ATTRIBUTE;
                                         break;
-                case E_SET_SEGMENT_POSITION:    logDecode("NOT SUPPORTED [ 0x1B 0x78 0x" + Integer.toHexString(ch)+ " ]");
-                                                if (ch == '0')
-                                                {
-                                                    /* not supported: text segments */
-                                                    logDecode(" ]");
-                                                    mode = _mode.E_NORMAL;
-                                                    logDecodeFlush();
-                                                }
-                                                else
-                                                {
-                                                    /* not supported: text segments */
-                                                    mode = _mode.E_SKIP_ONE;
-                                                }
-                                                break;
-                case E_SELECT_PAGE:
-                    switch (ch) {
-                        case 'G':   /* Page size equals number of data lines                       */
-                        case 'H':   /* Page size is twice the number of data lines                 */
-                        case 'J':   /* 1st page is number of data lines,2nd page is remaining lines*/
-                                    /* not supported: splitting memory */
-                                    logDecode("NOT SUPPORTED [ 0x1B 0x77 0x" + Integer.toHexString(ch)+ " ]");
+            case E_SET_ATTRIBUTE:   logDecode("setAttribute(%s%s%s%s%s%s)",
+                                            ((ch & T_ALL) == T_NORMAL)          ? " NORMAL"     : "",
+                                            (((ch & T_ALL) & T_REVERSE) != 0)   ? " REVERSE"    : "",
+                                            (((ch & T_ALL) & T_DIM) != 0)       ? " DIM"        : "",
+                                            (((ch & T_ALL) & T_UNDERSCORE) != 0)? " UNDERSCORE" : "",
+                                            (((ch & T_ALL) & T_BLINK) != 0)     ? " BLINK"      : "",
+                                            (((ch & T_ALL) & T_BLANK) != 0)     ? " BLANK"      : "");
+                                    setAttributes(ch);
+                                    custom_display_attributes = 1;
+                                    mode = _mode.E_NORMAL;
+                                    logDecodeFlush();
                                     break;
-                        case 'B':   /* Display previous page                                       */
-                                    logDecode("displayPreviousPage()");
-                                    setPage(currentPage - 1);
-                                    break;
-                        case 'C':   /* Display next page                                           */
-                                    logDecode("displayNextPage()");
-                                    setPage(currentPage + 1);
-                                    break;
-                        case '0':   /* Display page 0                                              */
-                                    logDecode("displayPage(0)");
-                                    setPage(0);
-                                    break;
-                        case '1':   /* Display page 1                                              */
-                                    logDecode("displayPage(1)");
-                                    setPage(1);
-                                    break;
-                        case '2':   /* Display page 2                                              */
-                                    /* not supported: page 2 */
-                                    logDecode("NOT SUPPORTED [ 0x1B 0x77 0x32 ]");
-                                    setPage(2);
-                                    break;
-                    }
-                    mode = _mode.E_NORMAL;
-                    logDecodeFlush();
-                    break;
-                case E_CSI_D:   if (ch == '#')
-                                {
-                                    logDecode("setPrinting(TRANSPARENT);");
-                                    //isPrinting = P_TRANSPARENT;
-                                }
-                                else{
-                                        logDecode("setMode(0x" + Integer.toHexString(ch)+ " /* NOT SUPPORTED */");
-                                }
-                                mode = _mode.E_NORMAL;
-                                logDecodeFlush();
+            case E_SET_FEATURES:
+                switch (ch)
+                {
+                    case '0':   /* Cursor display off                                          */
+                                showCursor(0);
+                                logDecode("hideCursor()");
                                 break;
-                case E_CSI_E:   int newHeight = 42;
-                                switch (ch)
-                                {
-                                    case '(':   /* Display 24 data lines                                       */
-                                                newHeight = 24;
-                                                break;
-                                    case ')':   /* Display 25 data lines                                       */
-                                                newHeight = 25;
-                                                break;
-                                    case '*':   /* Display 42 data lines                                       */
-                                                newHeight = 42;
-                                                break;
-                                    case '+':   /* Display 43 data lines                                       */
-                                                newHeight = 43;
-                                                break;
-                                    default:    logDecode("setCommunicationMode(0x" + Integer.toHexString(ch)+ " /* NOT SUPPORTED */");
-                                                break;
-                                }
-                                requestNewGeometry(pty, currentBuffer.getMaximumWidth(), newHeight);
-                                mode = _mode.E_NORMAL;
-                                logDecodeFlush();
+                    case '1':   /* Cursor display on                                           */
+                    case '2':   /* Steady block cursor                                         */
+                    case '5':   /* Blinking block cursor                                       */
+                                showCursor(1);
+                                logDecode("showCursor()");
                                 break;
-            }
+                    case '3':   /* Blinking line cursor                                        */
+                    case '4':   /* Steady line cursor                                          */
+                                showCursor(1);
+                                logDecode("dimCursor()");
+                                break;
+                    case '6':   /* Reverse protected character                                 */
+                                setFeatures(T_REVERSE);
+                                logDecode("reverseProtectedCharacters()");
+                                break;
+                    case '7':   /* Dim protected character                                     */
+                                setFeatures(T_DIM);
+                                logDecode("dimProtectedCharacters()");
+                                break;
+                    case '8':   /* Screen display off                                          */
+                    case '9':   /* Screen display on                                           */
+                                /* not supported: disabling screen display */
+                                logDecode("NOT SUPPORTED [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
+                                break;
+                    case ':':       /* 80 column mode                                              */
+                                requestNewGeometry(pty, 80, currentBuffer.getMaximumHeight());
+                    case ';':       /* 132 column mode                                             */
+                                requestNewGeometry(pty, 132, currentBuffer.getMaximumHeight());
+                                break;
+                    case '<': /* Smooth scroll at one row per second                         */
+                    case '=': /* Smooth scroll at two rows per second                        */
+                    case '>': /* Smooth scroll at four rows per second                       */
+                    case '?': /* Smooth scroll at eight rows per second                      */
+                    case '@': /* Jump scroll                                                 */
+                                /* not supported: selecting scroll speed */
+                                logDecode("NOT SUPPORTED [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
+                                break;
+                    case 'A':       /* Normal protected character                                  */
+                                setFeatures(T_NORMAL);
+                                logDecode("normalProtectedCharacters()");
+                                break;
+                    default:    logDecode("UNKNOWN FEATURE [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
+                                break;
+                }
+                mode = _mode.E_NORMAL;
+                logDecodeFlush();
+                break;
+            case E_FUNCTION_KEY:    logDecode("NOT SUPPORTED [ 0x1B 0x5A 0x" + Integer.toHexString(ch)+ " ]");
+                                    if (ch == '~')
+                                    {
+                                        /* not supported: programming function keys */
+                                        mode = _mode.E_SKIP_ONE;
+                                    } else {
+                                        /* not supported: programming function keys */
+                                        mode = _mode.E_SKIP_DEL;
+                                    }
+                                    break;
+            case E_SET_SEGMENT_POSITION:    logDecode("NOT SUPPORTED [ 0x1B 0x78 0x" + Integer.toHexString(ch)+ " ]");
+                                            if (ch == '0')
+                                            {
+                                                /* not supported: text segments */
+                                                logDecode(" ]");
+                                                mode = _mode.E_NORMAL;
+                                                logDecodeFlush();
+                                            }
+                                            else
+                                            {
+                                                /* not supported: text segments */
+                                                mode = _mode.E_SKIP_ONE;
+                                            }
+                                            break;
+            case E_SELECT_PAGE:
+                switch (ch) {
+                    case 'G':   /* Page size equals number of data lines                       */
+                    case 'H':   /* Page size is twice the number of data lines                 */
+                    case 'J':   /* 1st page is number of data lines,2nd page is remaining lines*/
+                                /* not supported: splitting memory */
+                                logDecode("NOT SUPPORTED [ 0x1B 0x77 0x" + Integer.toHexString(ch)+ " ]");
+                                break;
+                    case 'B':   /* Display previous page                                       */
+                                logDecode("displayPreviousPage()");
+                                setPage(currentPage - 1);
+                                break;
+                    case 'C':   /* Display next page                                           */
+                                logDecode("displayNextPage()");
+                                setPage(currentPage + 1);
+                                break;
+                    case '0':   /* Display page 0                                              */
+                                logDecode("displayPage(0)");
+                                setPage(0);
+                                break;
+                    case '1':   /* Display page 1                                              */
+                                logDecode("displayPage(1)");
+                                setPage(1);
+                                break;
+                    case '2':   /* Display page 2                                              */
+                                /* not supported: page 2 */
+                                logDecode("NOT SUPPORTED [ 0x1B 0x77 0x32 ]");
+                                setPage(2);
+                                break;
+                }
+                mode = _mode.E_NORMAL;
+                logDecodeFlush();
+                break;
+            case E_CSI_D:   if (ch == '#')
+                            {
+                                logDecode("setPrinting(TRANSPARENT);");
+                                //isPrinting = P_TRANSPARENT;
+                            }
+                            else{
+                                    logDecode("setMode(0x" + Integer.toHexString(ch)+ " /* NOT SUPPORTED */");
+                            }
+                            mode = _mode.E_NORMAL;
+                            logDecodeFlush();
+                            break;
+            case E_CSI_E:   int newHeight = 42;
+                            switch (ch)
+                            {
+                                case '(':   /* Display 24 data lines                                       */
+                                            newHeight = 24;
+                                            break;
+                                case ')':   /* Display 25 data lines                                       */
+                                            newHeight = 25;
+                                            break;
+                                case '*':   /* Display 42 data lines                                       */
+                                            newHeight = 42;
+                                            break;
+                                case '+':   /* Display 43 data lines                                       */
+                                            newHeight = 43;
+                                            break;
+                                default:    logDecode("setCommunicationMode(0x" + Integer.toHexString(ch)+ " /* NOT SUPPORTED */");
+                                            break;
+                            }
+                            requestNewGeometry(pty, currentBuffer.getMaximumWidth(), newHeight);
+                            mode = _mode.E_NORMAL;
+                            logDecodeFlush();
+                            break;
         }
+    }
 
     public void requestNewGeometry(int pty, int width, int height)
     {
@@ -1159,96 +1263,118 @@ public class wyse60_TextView extends androidx.appcompat.widget.AppCompatTextView
     Handler handler;
     long startTime, currentTime, finishedTime = 0L;
     int color;
-    int[] colors = { getCurrentTextColor(), Color.WHITE}; /*((ColorDrawable)getBackground()).getColor()*/
+    //int[] colors = { getCurrentTextColor(), Color.WHITE}; /*((ColorDrawable)getBackground()).getColor()*/
+    int[] colors = { Color.GRAY, Color.WHITE };
 
-    //    @Override
-    public void setText (char[] text)
-    {
-        for (int i = 0; i < text.length; i++)
-        {
-            //Log.d(TAG, "setText: ." + Integer.toHexString(text[i]) + '.');
-            char debug_char = (char)text[i];
-            outputCharacter(0, debug_char);
+    @Override
+    protected void onDraw(Canvas canvas) {
+        Log.d(TAG, "onDraw: ");
+        super.onDraw(canvas);
+//        canvas.drawColor(Color.WHITE);
+
+        Iterator<String> iterator = message_queue.iterator();
+        while(iterator.hasNext()){
+            String element = (String) iterator.next();
+            for (char c : element.toCharArray())
+            {
+                //Log.d(TAG, "setText: ." + Integer.toHexString(text[i]) + '.');
+                outputCharacter(0, (char) c, canvas);
+            }
         }
 
-        for (int attribute = 0; attribute < currentBuffer.attributes.size(); attribute++)
-        {
-            _attributes temp_attribute = currentBuffer.attributes.get(attribute);
+//        clearScreen(canvas);
+//        for (char c : drawText.toCharArray())
+//            outputCharacter(0, c, canvas);
 
-            int effect_length = temp_attribute.get_effect_length(),
-                    effect = temp_attribute.get_effect();
+//        float width = (current_x - 100)/num_of_letters, height = (current_y - 100)/num_of_letters;
+//        canvas.drawText(String.valueOf(width), (current_x), current_y+100, mPaintText);
+//        canvas.drawText(String.valueOf(height), (current_x), current_y+200, mPaintText);
+    }
 
-            SpannableStringBuilder ssb = currentBuffer.lineBuffer.get(temp_attribute.get_startY());
-            //int start = currentBuffer.attributes.get(attribute).get_startY() * currentBuffer.maximumWidth + currentBuffer.attributes.get(attribute).get_startX();
-
-            int start = temp_attribute.get_startX();
-
-            if ((effect & T_BLANK) != 0)
-            {
-                ssb.setSpan(new ForegroundColorSpan(colors[1]), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-
-            if ((effect & T_REVERSE) != 0)
-            {
-                ssb.setSpan(new ForegroundColorSpan(colors[1]), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-                ssb.setSpan(new BackgroundColorSpan(colors[0]), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-            }
-
-            if ((effect & T_UNDERSCORE) != 0)
-                ssb.setSpan(new UnderlineSpan(), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-
-//            if ((effect & T_DIM) != 0)
+//    public void setText (char[] text)
+//    {
+//        for (char c : text) {
+//            //Log.d(TAG, "setText: ." + Integer.toHexString(text[i]) + '.');
+//            outputCharacter(0, (char) c, canvas);
+//        }
+//
+//        for (int attribute = 0; attribute < currentBuffer.attributes.size(); attribute++)
+//        {
+//            _attributes temp_attribute = currentBuffer.attributes.get(attribute);
+//
+//            int effect_length = temp_attribute.get_effect_length(),
+//                effect = temp_attribute.get_effect(),
+//                start = (temp_attribute.get_startY() * currentBuffer.getMaximumWidth() + temp_attribute.get_startX());
+//
+////            SpannableStringBuilder ssb = currentBuffer.lineBuffer.get(temp_attribute.get_startY());
+//            //int start = currentBuffer.attributes.get(attribute).get_startY() * currentBuffer.maximumWidth + currentBuffer.attributes.get(attribute).get_startX();
+//
+//            if ((effect & T_BLANK) != 0)
 //            {
-//                ArgbEvaluator evaluator;
-//                evaluator = new ArgbEvaluator();
-//                color = (int) evaluator.evaluate((float).5, colors[0], colors[1]);
-//                ssb.setSpan(new ForegroundColorSpan(color), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+//                currentBuffer.lineBuffer.setSpan(new ForegroundColorSpan(colors[1]), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
 //            }
-        }
-
-        SpannableStringBuilder ssb = new SpannableStringBuilder();
-        for (int i = 0; i < currentBuffer.maximumHeight; i++)
-        {
-            ssb.append(currentBuffer.lineBuffer.get(i));
-            ssb.append(Character.toString('\n'));
-        }
-        Log.d(TAG, "setText: writing to TextView");
-        setText(ssb, BufferType.SPANNABLE);
-
-/*            startTime = Long.valueOf(System.currentTimeMillis());
-            currentTime = startTime;
-
-            color = colors[0];
-            handler = new Handler();
-
-            handler.postDelayed(new Runnable()
-            {
-                @Override
-                public void run()
-                {
-                    int duration = 22000 / 4;
-                    currentTime = Long.valueOf(System.currentTimeMillis());
-                    finishedTime = Long.valueOf(currentTime) - Long.valueOf(startTime);
-
-                    if (color == colors[0])
-                        color = colors[1];
-                    else
-                        color = colors[0];
-
-                    SpannableStringBuilder ssb = new SpannableStringBuilder();
-                    for (int i = 0; i <= currentBuffer.attribute_index; i++)
-                    {
-                        int start = currentBuffer.attributes.get(i).startY * currentBuffer.maximumWidth + currentBuffer.attributes.get(i).startX;
-                        Log.d(TAG, "run: start="+start);
-                        ssb.append(new String(currentBuffer.lineBuffer));
-                        ssb.setSpan(new ForegroundColorSpan(color), start, start+currentBuffer.attributes.get(i).effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-                    }
-                    setText(ssb, BufferType.SPANNABLE);
-                    handler.postDelayed(this, 500);
-                }
-            }, 10);
-*/
-        }
+//
+//            if ((effect & T_REVERSE) != 0)
+//            {
+//                currentBuffer.lineBuffer.setSpan(new ForegroundColorSpan(colors[1]), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+//                currentBuffer.lineBuffer.setSpan(new BackgroundColorSpan(colors[0]), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+//            }
+//
+//            if ((effect & T_UNDERSCORE) != 0)
+//                currentBuffer.lineBuffer.setSpan(new UnderlineSpan(), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+//
+////            if ((effect & T_DIM) != 0)
+////            {
+////                ArgbEvaluator evaluator;
+////                evaluator = new ArgbEvaluator();
+////                color = (int) evaluator.evaluate((float).5, colors[0], colors[1]);
+////                ssb.setSpan(new ForegroundColorSpan(color), start, start+effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+////            }
+//        }
+//
+////        SpannableStringBuilder ssb = new SpannableStringBuilder();
+////        for (int i = 0; i < currentBuffer.maximumHeight; i++)
+////        {
+////            ssb.append(currentBuffer.lineBuffer.get(i));
+////            ssb.append(Character.toString('\n'));
+////        }
+////        Log.d(TAG, "setText: writing to TextView");
+////        setText(ssb, BufferType.SPANNABLE);
+//
+///*            startTime = Long.valueOf(System.currentTimeMillis());
+//            currentTime = startTime;
+//
+//            color = colors[0];
+//            handler = new Handler();
+//
+//            handler.postDelayed(new Runnable()
+//            {
+//                @Override
+//                public void run()
+//                {
+//                    int duration = 22000 / 4;
+//                    currentTime = Long.valueOf(System.currentTimeMillis());
+//                    finishedTime = Long.valueOf(currentTime) - Long.valueOf(startTime);
+//
+//                    if (color == colors[0])
+//                        color = colors[1];
+//                    else
+//                        color = colors[0];
+//
+//                    SpannableStringBuilder ssb = new SpannableStringBuilder();
+//                    for (int i = 0; i <= currentBuffer.attribute_index; i++)
+//                    {
+//                        int start = currentBuffer.attributes.get(i).startY * currentBuffer.maximumWidth + currentBuffer.attributes.get(i).startX;
+//                        Log.d(TAG, "run: start="+start);
+//                        ssb.append(new String(currentBuffer.lineBuffer));
+//                        ssb.setSpan(new ForegroundColorSpan(color), start, start+currentBuffer.attributes.get(i).effect_length, Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+//                    }
+//                    setText(ssb, BufferType.SPANNABLE);
+//                    handler.postDelayed(this, 500);
+//                }
+//            }, 10);
+//*/
+//    }
 
     public char enterGraphicsCharacter(char key)
     {

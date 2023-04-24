@@ -13,45 +13,39 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.databinding.DataBindingUtil;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager.widget.ViewPager;
 
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.TextView;
+import android.widget.SeekBar;
 import android.widget.ToggleButton;
 
-import com.craigwashere.wyse60.data.UserViewModel;
+//import com.craigwashere.wyse60.data.Wyse60ViewModel;
 import com.craigwashere.wyse60.util.BluetoothConnectionService;
 import com.craigwashere.wyse60.util.CustomPagerAdapter;
 import com.craigwashere.wyse60.R;
-import com.craigwashere.wyse60.data.User;
-import com.craigwashere.wyse60.databinding.ActivityMainBinding;
-import com.craigwashere.wyse60.util.CustomReceiver;
-import com.craigwashere.wyse60.util.wyse60_TextView;
+//import com.craigwashere.wyse60.util.CustomReceiver;
+import com.craigwashere.wyse60.util.MyEvent;
+import com.craigwashere.wyse60.util.Wyse60view;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import io.reactivex.rxjava3.disposables.Disposable;
+
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener
 {
     final static String TAG = "MainActivity";
-   // wyse60_TextView main_text;
 
-    User user;
-
-    // ScreenBuffer main_text;
     float font_size = 8.5f;
-    BluetoothConnectionService m_bluetooth_connection;
+
     private static final UUID MY_UUID_INSECURE =
             UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
 
@@ -59,8 +53,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     BluetoothDevice m_bluetooth_device;
-
+    BluetoothConnectionService m_bluetooth_connection;
     SharedPreferences sharedPreferences;
+    //Wyse60ViewModel userViewModel;
     private List<ToggleButton> toggleButtons;
     private boolean CTRL_is_checked = false,
                     SHIFT_is_checked = false,
@@ -74,30 +69,31 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             };
     private Button escape_button;
 
+    Wyse60view main_text;
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //TextView main_text = findViewById(R.id.main_view);
+        setContentView(R.layout.activity_main);
+        main_text = findViewById(R.id.main_view);
 
-        //user = new User("JJJJ");
-        TextView main_text = findViewById(R.id.main_view);
-
-        UserViewModel userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
-        ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-        binding.setUserviewmodel(userViewModel);
+        /*
+         userViewModel = new ViewModelProvider(this).get(Wyse60ViewModel.class);
+         ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        binding.setWyse60ViewModel(userViewModel);
         binding.setLifecycleOwner(this);
-
-        userViewModel.getName().observe(this, new Observer<String>() {
+        userViewModel.getText().observe(this, new Observer<Spannable>() {
             @Override
-            public void onChanged(String name) {
-                Log.d(TAG, "onChanged: ");
+            public void onChanged(Spannable text) {
+                Log.d(TAG, "onChanged: "+ text);
 
             }
         });
 
         CustomReceiver mCustomReceiver = new CustomReceiver(userViewModel);
         LocalBroadcastManager.getInstance(this).registerReceiver(mCustomReceiver, new IntentFilter("Incoming_Message"));
-
+*/
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -157,14 +153,44 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         ViewPager vp_keyboard_pager = (ViewPager) findViewById(R.id.vp_keyboard_area);
         vp_keyboard_pager.setAdapter(new CustomPagerAdapter(this));
 
-        //LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
+       /* SeekBar seek_size = findViewById(R.id.seek_size);
+        seek_size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                main_text.setTextSize(progress);
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        SeekBar seek_space = findViewById(R.id.seek_space);
+        seek_space.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                main_text.setTextSpacing(progress/100f);
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        main_text.setText2("CRAIG WAS HERE");
+*/
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
+
+        //register receiver to send messages through bluetooth
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("send_character"));
 
         //Broadcasts when bond state changes (ie:pairing)
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
         registerReceiver(mBroadcastReceiver4, filter);
 
-/*---------------Following lines are debug shortcut -----------------------*/
+        /*---------------Following lines are debug shortcut -----------------------*/
         BluetoothAdapter m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
         BluetoothDevice m_bluetooth_device = m_bluetooth_adapter.getRemoteDevice("00:21:79:DF:0A:7C");
 
@@ -173,8 +199,44 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             m_bluetooth_device.createBond();
             m_bluetooth_connection.startClient(m_bluetooth_device, HC_05_UUID_INSECURE);
         }
+
+   //     initObservable();
     }
 
+ /*   @SuppressLint("CheckResult")
+    private void initObservable()
+    {
+        Log.d(TAG, "initObservable: ");
+        Observable.create(new ObservableOnSubscribe<String>() {
+                    @SuppressLint("CheckResult")
+                    @Override
+                    public void subscribe(ObservableEmitter<String> emitter) throws Exception {
+                        // Set up your Bluetooth stream here
+                        InputStream inputStream = bluetoothSocket.getInputStream();
+                        byte[] buffer = new byte[1024];
+                        int bytes;
+
+                        while (true) {
+                            try {
+                                bytes = inputStream.read(buffer);
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                                    emitter.onNext(new String(buffer, StandardCharsets.UTF_8));
+                                }
+                            } catch (IOException e) {
+                                emitter.onError(e);
+                                break;
+                            }
+                        }
+
+                        emitter.onComplete();
+                    }
+                })
+                .subscribeOn(Schedulers.io())
+                .subscribe((Consumer<String>) bytes -> {
+                    // Handle the received data here
+                });
+    }
+*/
     private final BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -184,46 +246,18 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
             Log.d(TAG, "onReceive: message_to_send length: "+ message_to_send.length() );
 
-            /*if (message_to_send.length() == 1)
-            {
-                Log.d(TAG, "onReceive: length = 1");
-                if (message_to_send.charAt(0) > 0x0c)
-                {
-                    char char_to_send = (char)message_to_send.charAt(0);
-                    if (CTRL_is_checked)
-                        char_to_send &= 0x1F;
-
-                    if (SHIFT_is_checked)
-                        char_to_send &= 0x5F;
-
-                    if (ALT_is_checked)
-                        char_to_send &= 0x3F;
-
-                    message_to_send = Character.toString(char_to_send);
-                }
-            }
-            else if (message_to_send.length() == 3)
-            {
-                Log.d(TAG, "onReceive: " + message_to_send);
-                char char_to_send = message_to_send.charAt(1);
-                if (SHIFT_is_checked)
-                    char_to_send |= 0x2F;
-
-                //hopefully CTRL and ALT are never used with function keys
-
-                message_to_send = (char)0x01 + Character.toString(char_to_send) + (char) 0x0d;
-            }*/
-
             m_bluetooth_connection.write(message_to_send);
         }
     };
 
+
     BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            char[] text = intent.getStringExtra("theMessage").toCharArray();
-            //main_text.setText(text);
+//            char[] text = intent.getStringExtra("theMessage").toCharArray();
+//            main_text.setText(text);
 //            user.setName(String.valueOf(text));
+            main_text.setText2(intent.getStringExtra("theMessage"));
         }
     };
 
@@ -264,6 +298,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         m_bluetooth_connection.startClient(device, uuid);
     }
 
+    private Disposable eventDisposable;
 
     @Override
     public void onPause() {
@@ -274,8 +309,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         shared_preferences_editor.putString(getString(R.string.font_size_key), Float.toString(font_size));
         shared_preferences_editor.commit();
 
-    }
+        eventDisposable.dispose();
 
+    }
     @Override
     public void onResume()
     {
@@ -290,6 +326,10 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         //main_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, minSize);
     }
 
+    private void onEvent(MyEvent event) {
+        // Handle the event
+        m_bluetooth_connection.write(event.getData());
+    }
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key)
     {

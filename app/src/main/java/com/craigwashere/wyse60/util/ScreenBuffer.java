@@ -13,7 +13,7 @@ class ScreenBuffer
 
     ArrayList<_attributes> attributes;
 
-    public ArrayList<SpannableStringBuilder> lineBuffer;
+    public SpannableStringBuilder lineBuffer;
 
     int attribute_index;
 
@@ -27,20 +27,13 @@ class ScreenBuffer
         maximumWidth = 80;  maximumHeight = 42;
         cursorX = 0;        cursorY = 0;
 
-        lineBuffer = new ArrayList<SpannableStringBuilder>(maximumHeight);
+        lineBuffer = new SpannableStringBuilder();
 
-        set_new_geometry(maximumWidth, maximumHeight);
+//        set_new_geometry(maximumWidth, maximumHeight);
+        clear_screen(' ');
 
         attributes = new ArrayList<_attributes>();
         attribute_index = -1;
-    }
-
-    public ArrayList<SpannableStringBuilder> getLineBuffer() {
-        return lineBuffer;
-    }
-
-    public void setLineBuffer(ArrayList<SpannableStringBuilder> text){
-        lineBuffer = text;
     }
 
     public int getCursorX()         {   return cursorX; }
@@ -53,15 +46,17 @@ class ScreenBuffer
     public void setMaximumWidth(int width)      { maximumWidth = width;  }
     public void setMaximumHeight(int height)    { maximumHeight = height;   }
 
-    public void clear_screen(int attributes, char fillChar)
+    public void clear_screen(char fillChar)
     {
-        char[] temp_char = new char[maximumWidth];
+        char[] temp_char = new char[maximumWidth*maximumHeight];
         Arrays.fill(temp_char, fillChar);
 
-        for (int i = 0; i < maximumHeight; i++)
-            lineBuffer.get(i).replace(0, maximumWidth, new String(temp_char));
+        lineBuffer.clearSpans();
+        lineBuffer.clear();
+        lineBuffer.insert(0, String.valueOf(temp_char));
 
-        this.attributes.clear();
+        if (this.attributes != null)
+            this.attributes.clear();
     }
 
     public int find_attribute(int x, int y)
@@ -80,17 +75,6 @@ class ScreenBuffer
         this.maximumWidth = new_width;
         this.maximumHeight = new_height;
         lineBuffer.clear();
-        setup_ssb_buffer();
-    }
-
-    private void setup_ssb_buffer()
-    {
-        Log.d(TAG, "setup_ssb_buffer: ");
-        char[] temp_char = new char[maximumWidth];
-        for (int i = 0; i < maximumHeight; i++)
-        {
-            SpannableStringBuilder temp = new SpannableStringBuilder(new String(temp_char));
-            lineBuffer.add(temp);
-        }
+        clear_screen(' ');
     }
 }
