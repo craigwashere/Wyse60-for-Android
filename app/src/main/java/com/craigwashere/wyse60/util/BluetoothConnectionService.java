@@ -129,6 +129,14 @@ public class BluetoothConnectionService
                 connected(socket, mmDevice);
             }
             Log.d(TAG, "END mAcceptThread, socket Type: " + mSocketType);
+
+            /*
+              4/25/2023 From Android documentation:
+              Once the BluetoothSocket is acquired, it's a good idea to call close() on the
+              BluetoothServerSocket when it's no longer needed for accepting connections. Closing
+              the BluetoothServerSocket will not close the returned BluetoothSocket
+            */
+            cancel();
         }
 
         public void cancel()
@@ -272,11 +280,11 @@ public class BluetoothConnectionService
                     bytes = mmInStream.read(buffer);
                     if (bytes != 0)
                     {
-                        StringBuilder debug_string = new StringBuilder();
-                        for (int i = 0; i < bytes; i++) {
-                            debug_string.append((int) buffer[i]);
-                            debug_string.append(' ');
-                        }
+//                        StringBuilder debug_string = new StringBuilder();
+//                        for (int i = 0; i < bytes; i++) {
+//                            debug_string.append((int) buffer[i]);
+//                            debug_string.append(' ');
+//                        }
 
                         String incomingMessage = null; // for UTF-8 encoding Integer.toString(buffer);
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
@@ -299,7 +307,7 @@ public class BluetoothConnectionService
         public void write(String bytes)
         {
             //String text = new String(bytes, Charset.defaultCharset());
-            Log.d(TAG, "write: writing to output stream: " + bytes);
+//            Log.d(TAG, "write: writing to output stream: " + bytes);
             try
             {
                 for (int i = 0; i < bytes.length(); i++)
@@ -344,7 +352,7 @@ public class BluetoothConnectionService
         // Create temporary object
         ConnectedThread temporary_mConnectedThread =  mConnectedThread;
         // Synchronize a copy of the ConnectedThread
-        Log.d(TAG, "write: write called");
+//        Log.d(TAG, "write: write called");
         // Perform the write unsynchronized
         if (temporary_mConnectedThread != null)
             temporary_mConnectedThread.write(out);

@@ -18,6 +18,8 @@ import androidx.preference.PreferenceManager;
 import androidx.viewpager.widget.ViewPager;
 
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -70,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     private Button escape_button;
 
     Wyse60view main_text;
+
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,6 +80,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         //TextView main_text = findViewById(R.id.main_view);
         setContentView(R.layout.activity_main);
         main_text = findViewById(R.id.main_view);
+
 
         /*
          userViewModel = new ViewModelProvider(this).get(Wyse60ViewModel.class);
@@ -244,7 +248,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
             String message_to_send  = intent.getStringExtra("message");
 
-            Log.d(TAG, "onReceive: message_to_send length: "+ message_to_send.length() );
+//            Log.d(TAG, "onReceive: message_to_send length: "+ message_to_send.length() );
 
             m_bluetooth_connection.write(message_to_send);
         }
@@ -257,7 +261,14 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 //            char[] text = intent.getStringExtra("theMessage").toCharArray();
 //            main_text.setText(text);
 //            user.setName(String.valueOf(text));
-            main_text.setText2(intent.getStringExtra("theMessage"));
+                String message = intent.getStringExtra("theMessage");
+//                String return_string = new String();
+//                for (char c: message.toCharArray())
+//                    return_string += (Integer.toHexString(c) + ' ');
+//            Log.d(TAG, "onReceive: " + return_string);
+
+            if (message.length() > 0)
+                main_text.setText2(message);
         }
     };
 
@@ -309,7 +320,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         shared_preferences_editor.putString(getString(R.string.font_size_key), Float.toString(font_size));
         shared_preferences_editor.commit();
 
-        eventDisposable.dispose();
+//        eventDisposable.dispose();
 
     }
     @Override

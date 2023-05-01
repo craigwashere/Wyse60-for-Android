@@ -144,7 +144,8 @@ public class CustomPagerAdapter extends PagerAdapter implements View.OnClickList
         StringBuilder message = new StringBuilder();
         switch (v.getId())
         {
-            case R.id.btn_F1:       message.append((char)0x01); message.append((char)0x40); message.append((char)0x0d);   break;
+            case R.id.btn_F1:
+                Log.d(TAG, "onClick: F1");message.append((char)0x01); message.append((char)0x40); message.append((char)0x0d);   break;
             case R.id.btn_F2:       message.append((char)0x01); message.append((char)0x41); message.append((char)0x0d);   break;
             case R.id.btn_F3:       message.append((char)0x01); message.append((char)0x42); message.append((char)0x0d);   break;
             case R.id.btn_F4:       message.append((char)0x01); message.append((char)0x43); message.append((char)0x0d);   break;
@@ -168,7 +169,7 @@ public class CustomPagerAdapter extends PagerAdapter implements View.OnClickList
             case R.id.btn_9:        message.append('9'); break;
             case R.id.btn_0:        message.append('0'); break;
             case R.id.btn_space:    message.append(' '); break;
-            case R.id.btn_enter:    message.append((char)0x0a); break;
+            case R.id.btn_enter:    message.append((char)0x0d); break;
             case R.id.btn_up:       message.append((char)0x0b); break;
             case R.id.btn_down:     message.append((char)0x0a); break;
             case R.id.btn_left:     message.append((char)0x08); break;
