@@ -150,7 +150,7 @@ public class CustomPagerAdapter extends PagerAdapter implements View.OnClickList
             case R.id.btn_F3:       message.append((char)0x01); message.append((char)0x42); message.append((char)0x0d);   break;
             case R.id.btn_F4:       message.append((char)0x01); message.append((char)0x43); message.append((char)0x0d);   break;
             case R.id.btn_F5:       message.append((char)0x3e); message.append((char)0x30); message.append((char)0x0d);   break;
-            case R.id.btn_F6:       message.append((char)0x01); message.append((char)0x45); message.append((char)0x0d);   break;
+            case R.id.btn_F6:       Log.d(TAG, "onClick: F6");message.append((char)0x01); message.append((char)0x45); message.append((char)0x0d);   break;
             case R.id.btn_F7:       message.append((char)0x01); message.append((char)0x46); message.append((char)0x0d);   break;
             case R.id.btn_F8:       message.append((char)0x01); message.append((char)0x47); message.append((char)0x0d);   break;
             case R.id.btn_F9:       message.append((char)0x01); message.append((char)0x48); message.append((char)0x0d);   break;

@@ -5,6 +5,7 @@ import static android.view.MotionEvent.INVALID_POINTER_ID;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BlendMode;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -12,6 +13,7 @@ import android.graphics.Point;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Handler;
 import android.text.Spannable;
 import android.util.AttributeSet;
@@ -35,17 +37,18 @@ public class Wyse60view extends View {
     private Context mContext;
 
     enum _mode {
-        E_NORMAL, E_ESC, E_SKIP_ONE, E_SKIP_LINE, E_SKIP_DEL, E_FILL_SCREEN,
+        E_NORMAL, E_ESC, E_SKIP_ONE, E_STATUS_LINE, E_SKIP_DEL, E_FILL_SCREEN,
         E_GOTO_SEGMENT, E_GOTO_ROW_CODE, E_GOTO_COLUMN_CODE, E_GOTO_ROW,
         E_GOTO_COLUMN, E_SET_FIELD_ATTRIBUTE, E_SET_ATTRIBUTE,
         E_GRAPHICS_CHARACTER, E_SET_FEATURES, E_FUNCTION_KEY,
         E_SET_SEGMENT_POSITION, E_SELECT_PAGE, E_CSI_D, E_CSI_E,
-        E_ADV_FEATURES, E_LOAD_CHAR
+        E_ADV_FEATURES, E_LOAD_CHAR,
+        E_FIELD_OR_MESSAGE, MESSAGE_UNSHIFTED, MESSAGE_SHIFTED
     }
 
     private static final short T_NORMAL = 0x30,
             T_BLANK = 0x01,
-            T_BLINK = 0x02,
+                T_BLINK = 0x02,
             T_REVERSE = 0x04,
             T_UNDERSCORE = 0x08,
             T_DIM = 0x40,
@@ -57,29 +60,29 @@ public class Wyse60view extends View {
     _mode mode = _mode.E_NORMAL;
     int screenWidth = 80, screenHeight = 42, originalWidth, originalHeight;
     int needsReset, needsClearingBuffers, isPrinting;
-    int _protected, writeProtection, currentAttributes;
+    int _protected, writeProtection, m_current_attributes;
     int normalAttributes, protectedAttributes = T_REVERSE;
     int protectedPersonality = T_REVERSE;
     int insertMode, graphicsMode, cursorIsHidden, currentPage;
     int changedDimensions, targetColumn, targetRow;
     int custom_display_attributes = 0;
     int bb_count = 0;
-    boolean connected;
-    ScreenBuffer currentBuffer;
+    boolean connected, m_display_message = true;
 
-    float write_pos_x, write_pos_y;
-    int char_pos_x, char_pos_y;
+    float m_write_pos_x, m_write_pos_y;
+    float m_text_size = 24F, m_text_spacing = 0F;
+    float m_font_width = 11.0F, m_font_height = 20.0F;
+    int m_char_pos_x, m_char_pos_y;
     boolean ack_mode = false;
     private String drawText = "craig was here";
     Paint mPaintText;
     ConcurrentLinkedQueue<String> message_queue;
-    float text_size = 24F, text_spacing = 0F;
-    float font_width = 11.0F, font_height = 20.0F;
 
     boolean show_cursor = true;
 
-    public void setTextSize(int value) {
-        text_size = TypedValue.applyDimension(
+    public void setTextSize(int value)
+    {
+        m_text_size = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
                 (float) value, getResources().getDisplayMetrics()
         );
@@ -87,48 +90,17 @@ public class Wyse60view extends View {
     }
 
     public void setTextSpacing(float value) {
-        text_spacing = TypedValue.applyDimension(
+        m_text_spacing = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
                 (float) value, getResources().getDisplayMetrics()
         );
         invalidate();
     }
 
-    int current_attribute;
 
-    //int[] colors = { getCurrentTextColor(), Color.WHITE}; /*((ColorDrawable)getBackground()).getColor()*/
-//    int[] colors = { Color.BLACK, Color.GREEN };
-
-    int text_color = Color.GREEN, background_color = Color.BLACK, dim_text_color = Color.BLUE;
-    class char_text {
-        float m_write_pos_x, m_write_pos_y;
-        char character_to_print;
-        int m_attribute;
-
-        public char_text(float write_pos_x, float write_pos_y, char replacing_char, int attribute) {
-            m_write_pos_x = write_pos_x;
-            m_write_pos_y = write_pos_y;
-            character_to_print = replacing_char;
-            m_attribute = attribute;
-        }
-        public boolean equals(Object o)
-        {
-            if (o instanceof char_text)
-            {
-                //id comparison
-                char_text mo = (char_text)o;
-                return ((m_write_pos_y == ((char_text) o).m_write_pos_y) && (m_write_pos_x == ((char_text) o).m_write_pos_x));
-            }
-            return false;
-        }
-
-        public int hashCode()
-        {   return java.util.Objects.hash(m_write_pos_x, m_write_pos_y);  }
-
-    }
-
-    ArrayList<char_text> chars;
-
+    MainText m_main_text;
+    StatusLine m_status_line;
+    MessageLine m_message_line;
     public void setText2(String text) {
         Log.d(TAG, "setText2: "+char_to_hex(text));
         if (text.length() > 0) {
@@ -256,53 +228,37 @@ public class Wyse60view extends View {
         canvas.translate(mPosX, mPosY);
 
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
-        for (char_text c : chars)
-        {
-            change_attributes(c, canvas);
-            canvas.drawText(String.valueOf(c.character_to_print), c.m_write_pos_x, c.m_write_pos_y, mPaintText);
-        }
+
+        m_main_text.draw_text(canvas, mPaintText);
+        m_status_line.draw_text(canvas, mPaintText);
+
+        if (m_display_message)  m_message_line.draw_text(canvas, mPaintText);
 
         if (show_cursor)    draw_cursor(canvas);
     }
 
+
     private void draw_cursor(Canvas canvas)
     {
-        Log.d(TAG, "draw_cursor: write_pos_x: " + write_pos_x +"\twrite_pos_y: " + write_pos_y);
-        mPaintText.setColor(text_color);
-        canvas.drawRect(write_pos_x, (float) (write_pos_y-(font_height*.5)), write_pos_x+font_width, write_pos_y-font_height, mPaintText );
+        mPaintText.setAlpha(200);
+
+        canvas.drawRect(m_write_pos_x, (float) m_write_pos_y,
+                m_write_pos_x+m_font_width, m_write_pos_y-m_font_height, mPaintText );
     }
 
-    private void change_attributes(char_text c, Canvas canvas)
-    {
-        if (c.m_attribute == T_NORMAL)
-            mPaintText.setColor(Color.GREEN);
-
-        if((c.m_attribute & T_DIM) != 0)
-            mPaintText.setColor(dim_text_color);
-
-        if((c.m_attribute & T_UNDERSCORE) != 0)
-            mPaintText.setFlags(Paint.UNDERLINE_TEXT_FLAG);
-
-        if((c.m_attribute & T_REVERSE) !=0 )
-        {
-            mPaintText.setColor(text_color);
-            canvas.drawRect(c.m_write_pos_x, c.m_write_pos_y-font_height, c.m_write_pos_x+font_width, c.m_write_pos_y, mPaintText);
-            mPaintText.setColor(background_color);
-        }
-}
-    private PublishSubject<MyEvent> eventSubject = PublishSubject.create();
-    public void publishEvent(MyEvent event) 
-    {
-        Log.d(TAG, "publishEvent: ");
-        eventSubject.onNext(event);
-    }
+//    private PublishSubject<MyEvent> eventSubject = PublishSubject.create();
+//    public void publishEvent(MyEvent event)
+//    {
+//        Log.d(TAG, "publishEvent: ");
+//        eventSubject.onNext(event);
+//    }
     String debug_string = "";
 
     public Wyse60view(Context context)
     {
         super(context);
         Log.d(TAG, "wyse60_TextView: (Context context)");
-        currentBuffer = new ScreenBuffer();
+//        currentBuffer = new ScreenBuffer();
 
         mPaintText.setColor(Color.GREEN);
     }
@@ -312,10 +268,10 @@ public class Wyse60view extends View {
         super(context, attrs);
         connected = false;
         Log.d(TAG, "wyse60_TextView: (Context context, AttributeSet attrs)");
-        currentBuffer = new ScreenBuffer();
 
         message_queue = new ConcurrentLinkedQueue<String>();
-        chars = new ArrayList<>();
+
+        float text_size = 24F;
 
         mPaintText = new Paint();
         mPaintText.setColor(Color.GREEN);
@@ -323,19 +279,22 @@ public class Wyse60view extends View {
         mPaintText.setTextSize(text_size);
         mPaintText.setTypeface(Typeface.MONOSPACE);
 
-        write_pos_x = 0F;
-        write_pos_y = font_height;
-        char_pos_x = 0;
-        char_pos_y = 0;
+        m_write_pos_x = 0F;
+        m_write_pos_y = m_font_height;
+        m_char_pos_x = 0;
+        m_char_pos_y = 0;
 
         mScaleGestureDetector = new ScaleGestureDetector(context, new ScaleListener());
+
+        m_main_text = new MainText(m_text_size);
+        m_status_line = new StatusLine(screenHeight, m_text_size);
+        m_message_line = new MessageLine(screenHeight+1, m_text_size);
     }
 
     public Wyse60view(Context context, AttributeSet attrs, int defStyleAttr)
     {
         super(context, attrs, defStyleAttr);
         Log.d(TAG, "wyse60_TextView: (Context context, AttributeSet attrs, int defStyleAttr)");
-        currentBuffer = new ScreenBuffer();
 
         mPaintText.setColor(Color.GREEN);
     }
@@ -376,7 +335,8 @@ public class Wyse60view extends View {
 
     public void setAttributes(int attributes)
     {
-        current_attribute = attributes;
+        m_current_attributes = attributes;
+        m_main_text.change_attribute(attributes);
     }
 
     private int[] string_to_int_array(String message)
@@ -425,12 +385,8 @@ public class Wyse60view extends View {
     }
 
     public void fillScreen(int attributes, char fillChar)
-    {    //hopefully, we can just loop through the chars and set the fillChar and attributes
-        //currentBuffer->maximumHeight = 42;
-        //currentBuffer->maximumWidth = 80;
-
-        currentBuffer.clear_screen(fillChar);
-
+    {
+        //hopefully, we can just loop through the chars and set the fillChar and attributes
         logDecode("fillScreen: attributes=%d, fillChar=%c", attributes, fillChar);
     }
 
@@ -443,64 +399,54 @@ public class Wyse60view extends View {
         mPosY = 0;
         mScaleFactor = 1f;
 
-        chars.clear();
+        m_main_text.clear();
+        m_status_line.reset_x_pos();
+        m_message_line.reset_x_pos();
     }
 
-    public void _moveScreenBuffer(ScreenBuffer screenBuffer, float x1, float y1, float x2, float y2,
+    public void _moveScreenBuffer(float x1, float y1, float x2, float y2,
                                   float dx, float dy)
     {   }
 
-    public void _clearScreenBuffer(ScreenBuffer screenBuffer,int x1, int y1, int x2, int y2,
+    public void _clearScreenBuffer(int x1, int y1, int x2, int y2,
                             short attributes, char fillChar)
     {   }
 
 
-    public void clearScreenBuffer(ScreenBuffer screenBuffer,int x1, int y1, int x2, int y2,
+    public void clearScreenBuffer(int x1, int y1, int x2, int y2,
                            short attributes, char fillChar)
     {
         if (x1 < 0)             x1 = 0;
         if (x2 >= screenWidth)  x2 = screenWidth - 1;
         if (y1 < 0)             y1 = 0;
         if (y2 >= screenHeight) y2 = screenHeight - 1;
-        _clearScreenBuffer(screenBuffer, x1, y1, x2, y2, attributes, fillChar);
+        _clearScreenBuffer(x1, y1, x2, y2, attributes, fillChar);
     }
 
 
     public void clearExcessBuffers()
     {
-    /*if (needsClearingBuffers) {
-        int i;
-        for (i = 0; i < sizeof(screenBuffer) / sizeof(ScreenBuffer *); i++) {
-            _clearScreenBuffer(screenBuffer[i],
-                    0, screenHeight,
-                    screenBuffer[i]->maximumWidth - 1,
-                    screenBuffer[i]->maximumHeight - 1,
-                    T_NORMAL, ' ');
-            _clearScreenBuffer(screenBuffer[i],
-                    screenWidth, 0,
-                    screenBuffer[i]->maximumWidth - 1,
-                    screenHeight - 1,
-                    T_NORMAL, ' ');
-        }
-        needsClearingBuffers = 0;
-    }*/
+
     }
 
-    public void moveScreenBuffer(ScreenBuffer screenBuffer,
-                                 float x1, float y1, float x2, float y2,
+    public void moveScreenBuffer(float x1, float y1, float x2, float y2,
                                  float dx, float dy)
     {
         clearExcessBuffers();
-        _moveScreenBuffer(screenBuffer, x1, y1, x2, y2, dx, dy);
+        _moveScreenBuffer(x1, y1, x2, y2, dx, dy);
     }
 
     public void gotoXY(int x, int y)
     {
         logDecode("gotoXY: x=%d, y=%d", x, y);
-        char_pos_x = x;
-        char_pos_y = y;
-        write_pos_x = x * font_width;
-        write_pos_y = y * font_height;
+
+        m_char_pos_x = x;
+        m_char_pos_y = y;
+
+        m_write_pos_x = x * m_font_width;
+        m_write_pos_y = y * m_font_height;
+
+        m_main_text.gotoXY(x, y);
     }
 
 
@@ -530,18 +476,26 @@ public class Wyse60view extends View {
         //char buffer[ 1024];
 
         logDecode("gotoXYscroll: x=%d, y=%d\n", x, y);
+
         gotoXY(x, y);
     }
 
 
     public void clearEol()
     {
-        int width = logicalWidth();
-        int height = logicalHeight();
-        clearExcessBuffers();
-
         logDecode("clearEol");
-        //we have to figure out what the "l" is first, then how to clear it
+//        clearExcessBuffers();
+
+        m_main_text.clear_to_end_of_line();
+//        for (Iterator<char_text> iterator = chars.iterator(); iterator.hasNext(); )
+//        {
+//            char_text value = iterator.next();
+//            if ((value.m_write_pos_y == m_write_pos_y) && (value.m_write_pos_x >= m_write_pos_x))
+//            {
+//                value.m_attribute = T_NORMAL;
+//                value.character_to_print = ' ';
+//            }
+//        }
     }
 
     public void clearEos()
@@ -561,7 +515,7 @@ public class Wyse60view extends View {
     {
         logDecode(Character.toString(ch) + ": " +Integer.toHexString(ch));
         logDecodeFlush();
-//        Log.d(TAG, Integer.toHexString(ch));
+
         String buffer = "";
         mode = _mode.E_NORMAL;
         custom_display_attributes = 0;
@@ -634,8 +588,8 @@ public class Wyse60view extends View {
             case '/':   {/* Transmits the active text segment number and cursor address   */
                         /* not supported: text segments */
                         logDecode("sendCursorAddress()");
-                        buffer.format(" %c%c\r", (char_pos_y + 32),
-                                (char_pos_x + 32));
+                        buffer.format(" %c%c\r", (m_char_pos_y + 32),
+                                (m_char_pos_x + 32));
                         sendUserInput(pty, buffer, 4);
                         }
                         break;
@@ -689,8 +643,8 @@ public class Wyse60view extends View {
                         break;
             case '?':   /* Transmits the cursor address for the active text segment      */
                         logDecode("sendCursorAddress()");
-                        buffer.format("%c%c\r", (char_pos_y + 32),
-                                (char_pos_x + 32));
+                        buffer.format("%c%c\r", (m_char_pos_y + 32),
+                                (m_char_pos_x + 32));
                         sendUserInput(pty, buffer, 3);
                         break;
             case '@':   /* Sends all unprotected characters from start of text to aux    */
@@ -718,17 +672,17 @@ public class Wyse60view extends View {
                         break;
             case 'E':   /* Inserts a row of spaces                                       */
                         logDecode("insertLine()");
-                        moveScreenBuffer(currentBuffer,
-                                0, char_pos_y,
-                                logicalWidth() - 1, logicalHeight() - 1,
-                                0, 1);
+//                        moveScreenBuffer(0, m_char_pos_y,
+//                                logicalWidth() - 1, logicalHeight() - 1,
+//                                0, 1);
                         break;
             case 'F':   /* Enters a message in the host message field                    */
                         /* not supported: messages */
-                        logDecode("E_SKIP_LINE");
+                        logDecode("E_STATUS_LINE");
                         logDecodeFlush();
                         logDecode("enterMessage() [");
-                        mode = _mode.E_SKIP_LINE;
+                        m_status_line.reset_x_pos();
+                        mode = _mode.E_STATUS_LINE;
                         break;
             case 'G':   /* Sets a video attributes                                       */
                         mode = _mode.E_SET_ATTRIBUTE;
@@ -740,7 +694,7 @@ public class Wyse60view extends View {
                         break;
             case 'I':   /* Moves cursor left to previous tab stop                        */
                         logDecode("backTab()");
-                        //gotoXY((char_pos_x - 1) & ~7, current_y);
+                        //gotoXY((m_char_pos_x - 1) & ~7, current_y);
                         break;
             case 'J':   /* Display previous page                                         */
                         logDecode("displayPreviousPage()");
@@ -773,17 +727,15 @@ public class Wyse60view extends View {
                         break;
             case 'Q':   /* Inserts a character                                           */
                         logDecode("insertCharacter()");
-                        _moveScreenBuffer(currentBuffer,
-                                char_pos_x, char_pos_y,
-                                logicalWidth() - 1, char_pos_y,
-                                1, 0);
+//                        _moveScreenBuffer(m_char_pos_x, m_char_pos_y,
+//                                logicalWidth() - 1, m_char_pos_y,
+//                                1, 0);
                         break;
             case 'R':   /* Deletes a row                                                 */
                         logDecode("deleteLine()");
-                        moveScreenBuffer(currentBuffer,
-                                0, char_pos_y + 1,
-                                logicalWidth() - 1, logicalHeight() - 1,
-                                0, 1);
+//                        moveScreenBuffer(0, m_char_pos_y + 1,
+//                                logicalWidth() - 1, logicalHeight() - 1,
+//                                0, 1);
                         break;
             case 'S':   /* Sends a message unprotected                                   */
                         /* not supported: messages */
@@ -798,21 +750,13 @@ public class Wyse60view extends View {
                         logDecode("enableMonitorMode() /* NOT SUPPORTED */");
                         break;
             case 'V':   /* Sets a protected column                                       */
-                        /*  int x, y;
-                        x = currentBuffer.cursorX;
-                        for (y = 0; y < logicalHeight(); y++)
-                        {
-                            currentBuffer.attributes[y][x] = T_PROTECTED | protectedPersonality;
-                            currentBuffer.lineBuffer [y * logicalWidth() + x] = ' ';
-                        }*/
                         displayCurrentScreenBuffer();
                         break;
             case 'W':   /* Deletes a character                                           */
                         logDecode("deleteCharacter()");
-                        _moveScreenBuffer(currentBuffer,
-                                char_pos_x + 1, char_pos_y,
-                                logicalWidth() - 1, char_pos_y,
-                                -1, 0);
+//                        _moveScreenBuffer(m_char_pos_x + 1, m_char_pos_y,
+//                                logicalWidth() - 1, m_char_pos_y,
+//                                -1, 0);
                         break;
             case 'X':   /* Turns the monitor submode off                                 */
                         /* not supported: monitor mode */
@@ -845,7 +789,7 @@ public class Wyse60view extends View {
                         break;
             case 'b':   /* Transmits the cursor address to the host                      */
                         logDecode("sendCursorAddress()");
-                        buffer.format("%dR%dC", char_pos_y + 1, char_pos_x + 1);
+                        buffer.format("%dR%dC", m_char_pos_y + 1, m_char_pos_x + 1);
                         sendUserInput(pty, buffer, buffer.length());
                         break;
             case 'c':   /* Set advanced parameters                                       */
@@ -862,11 +806,11 @@ public class Wyse60view extends View {
                         break;
             case 'i':   /* Moves the cursor to the next tab stop on the right            */
                         logDecode("tab()");
-                        //gotoXY((char_pos_x + 8) & ~7, current_y);
+                        //gotoXY((m_char_pos_x + 8) & ~7, current_y);
                         break;
             case 'j':   /* Moves cursor up one row and scrolls if in top row             */
                         logDecode("moveUpAndScroll()");
-                        gotoXYscroll(char_pos_x, char_pos_y + 1);
+                        gotoXYscroll(m_char_pos_x, m_char_pos_y + 1);
                         break;
             case 'k':   /* Turns local edit submode on                                   */
                         /* not supported: local edit mode */
@@ -916,7 +860,7 @@ public class Wyse60view extends View {
                         break;
             case 'z':   /* Enters message into key label field                           */
                         logDecode("setKeyLabel() /* NOT SUPPORTED */ [");
-                        mode = _mode.E_SKIP_DEL;
+                        mode = _mode.E_FIELD_OR_MESSAGE;
                         break;
             case '{':   /* Moves cursor to home position of text segment                 */
                         /* not supported: text segments */
@@ -1000,7 +944,7 @@ public class Wyse60view extends View {
                         logDecodeFlush();
                         break;
             case 0x08:  /* 0x08 BS:  Move cursor to the left                               */
-                        int x = char_pos_x - 1, y = char_pos_y;
+                        int x = m_char_pos_x - 1, y = m_char_pos_y;
                         if (x < 0)
                         {
                             x = logicalWidth() - 1;
@@ -1014,27 +958,27 @@ public class Wyse60view extends View {
                         break;
             case 0x09:  /* 0x09  HT:  Move to next tab position on the right                */
                         logDecode("tab()");
-                        gotoXY((char_pos_x + 8) & ~7, char_pos_y);
+                        gotoXY((m_char_pos_x + 8) & ~7, m_char_pos_y);
                         logDecodeFlush();
                         break;
             case 0x0a:  /* 0x0A  LF:  Moves cursor down                                     */
-                        logDecode("moveDown() %d, %d", char_pos_x, char_pos_y);
+                        logDecode("moveDown() %d, %d", m_char_pos_x, m_char_pos_y);
                         logDecodeFlush();
-                        gotoXYscroll(char_pos_x, char_pos_y + 1);
+                        gotoXYscroll(m_char_pos_x, m_char_pos_y + 1);
                         break;
             case 0x0b:  /* 0x0B  VT:  Moves cursor up                                       */
                         logDecode("moveUp()");
-                        gotoXY(char_pos_x, (char_pos_y - 1 + logicalHeight()) % logicalHeight());
+                        gotoXY(m_char_pos_x, (m_char_pos_y - 1 + logicalHeight()) % logicalHeight());
                         logDecodeFlush();
                         break;
             case 0x0c:  /* 0X0C  FF:  Moves cursor to the right                             */
                         logDecode("moveRight()");
-                        gotoXY(char_pos_x + 1, char_pos_y);
+                        gotoXY(m_char_pos_x + 1, m_char_pos_y);
                         logDecodeFlush();
                         break;
             case 0x0d:  /* 0x0D  CR:  Moves cursor to column one                            */
                         logDecode("return()");
-                        gotoXY(0, char_pos_y);
+                        gotoXY(0, m_char_pos_y);
                         logDecodeFlush();
                         break;
             case 0x0e:  /* 0x0E  SO:  Unlocks the keyboard                                  */
@@ -1114,7 +1058,7 @@ public class Wyse60view extends View {
             case 0x1f:  /* 0x1F  US:  Moves cursor down one row to column one               */
                         logDecode("moveDown() ");
                         logDecode("return()");
-                        gotoXYscroll(0, char_pos_y + 1);
+                        gotoXYscroll(0, m_char_pos_y + 1);
                         logDecodeFlush();
                         break;
             case 0x7f:  /* 0x7F  DEL: Delete character                                      */
@@ -1122,7 +1066,7 @@ public class Wyse60view extends View {
                         logDecodeFlush();
                         break;
             default:
-                String graphicsCharacters = new String("┬└┌┐├┘│█┼┤─▓═┴║▒");
+                String graphicsCharacters = "┬└┌┐├┘│█┼┤─▓═┴║▒";
 //                Log.d(TAG, "normal: " + ch);
 
                 char replacing_char = 0;
@@ -1136,15 +1080,9 @@ public class Wyse60view extends View {
                 }
                 finally
                 {
-                    char_text temp_char = new char_text(write_pos_x, write_pos_y, replacing_char, current_attribute);
-                    int temp_char_location = chars.indexOf(temp_char);
-                    if (temp_char_location == -1)
-                        chars.add(temp_char);
-                    else
-                        chars.set(temp_char_location, temp_char);
-
-                    char_pos_x++;
-                    write_pos_x += font_width;
+                    m_main_text.add_char(replacing_char);
+                    m_char_pos_x++;
+                    m_write_pos_x += m_font_width;
                 }
         }
     }
@@ -1177,14 +1115,17 @@ public class Wyse60view extends View {
             case E_SKIP_ONE:    mode = _mode.E_NORMAL;
                                 logDecode(" 0x" + Integer.toHexString(ch) + " ]");
                                 break;
-            case E_SKIP_LINE:   if (ch == '\r')
+            case E_STATUS_LINE:   if (ch == '\r')
                                 {
                                     logDecode(" ]");
                                     logDecodeFlush();
                                     mode = _mode.E_NORMAL;
                                 }
                                 else
+                                {
                                     logDecode(" " + Integer.toHexString(ch));
+                                    m_status_line.add_char(ch);
+                                }
                                 break;
             case E_SKIP_DEL:    if (ch == 0X7F || ch == '\r')
                                 {
@@ -1278,9 +1219,9 @@ public class Wyse60view extends View {
                                 logDecode("NOT SUPPORTED [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
                                 break;
                     case ':':       /* 80 column mode                                              */
-                                requestNewGeometry(pty, 80, currentBuffer.getMaximumHeight());
+                                requestNewGeometry(pty, 80, screenHeight);
                     case ';':       /* 132 column mode                                             */
-                                requestNewGeometry(pty, 132, currentBuffer.getMaximumHeight());
+                                requestNewGeometry(pty, 132, screenHeight);
                                 break;
                     case '<': /* Smooth scroll at one row per second                         */
                     case '=': /* Smooth scroll at two rows per second                        */
@@ -1389,7 +1330,7 @@ public class Wyse60view extends View {
                                 default:    logDecode("setCommunicationMode(0x" + Integer.toHexString(ch)+ " /* NOT SUPPORTED */");
                                             break;
                             }
-                            requestNewGeometry(pty, currentBuffer.getMaximumWidth(), newHeight);
+                            requestNewGeometry(pty, screenWidth, newHeight);
                             mode = _mode.E_NORMAL;
                             logDecodeFlush();
                             break;
@@ -1410,13 +1351,45 @@ public class Wyse60view extends View {
                                     bb_count++;
                                 }
                                 break;
+            case E_FIELD_OR_MESSAGE: switch (ch)
+                                     {
+                            /*0x28*/    case '(':   m_message_line.reset_x_pos();
+                                                    mode = _mode.MESSAGE_UNSHIFTED;
+                                                    break;
+                            /*0x29*/    case ')':   m_message_line.reset_x_pos();
+                                                    mode = _mode.MESSAGE_SHIFTED;
+                                                    break;
+                            /*0x50*/    case 'P':   m_display_message = true;
+                                                    mode = _mode.E_NORMAL;
+                                                    break;
+                            /*DEL */    case 0x7f:  m_display_message = false;
+                                                    mode = _mode.E_NORMAL;
+                                                    break;
+                                        default: mode = _mode.E_FUNCTION_KEY;
+                                     }
+                                     break;
+            case MESSAGE_UNSHIFTED: if (ch == '\r')
+                                    {
+                                        m_message_line.solidify_string();
+                                        mode = _mode.E_NORMAL;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        m_message_line.insert_char(ch);
+                                    }
         }
     }
 
     public void requestNewGeometry(int pty, int width, int height)
     {
-        logDecode("requestNewGeometry: " + width + ", " + height);
-        logDecodeFlush();
+        logDecode("requestNewGeometry: " + width + ", " + height); logDecodeFlush();
+
+        Log.d(TAG, "requestNewGeometry: " + width + ", " + height);
+        screenHeight = height;
+        screenWidth = width;
+
+        m_status_line.move_status_line(screenHeight);
     }
 
 

@@ -28,19 +28,16 @@ import android.widget.CompoundButton;
 import android.widget.SeekBar;
 import android.widget.ToggleButton;
 
-//import com.craigwashere.wyse60.data.Wyse60ViewModel;
 import com.craigwashere.wyse60.util.BluetoothConnectionService;
 import com.craigwashere.wyse60.util.CustomPagerAdapter;
 import com.craigwashere.wyse60.R;
 //import com.craigwashere.wyse60.util.CustomReceiver;
-import com.craigwashere.wyse60.util.MyEvent;
+//import com.craigwashere.wyse60.util.MyEvent;
 import com.craigwashere.wyse60.util.Wyse60view;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import io.reactivex.rxjava3.disposables.Disposable;
 
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener
 {
@@ -57,7 +54,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     BluetoothDevice m_bluetooth_device;
     BluetoothConnectionService m_bluetooth_connection;
     SharedPreferences sharedPreferences;
-    //Wyse60ViewModel userViewModel;
     private List<ToggleButton> toggleButtons;
     private boolean CTRL_is_checked = false,
                     SHIFT_is_checked = false,
@@ -81,23 +77,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         setContentView(R.layout.activity_main);
         main_text = findViewById(R.id.main_view);
 
-
-        /*
-         userViewModel = new ViewModelProvider(this).get(Wyse60ViewModel.class);
-         ActivityMainBinding binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-        binding.setWyse60ViewModel(userViewModel);
-        binding.setLifecycleOwner(this);
-        userViewModel.getText().observe(this, new Observer<Spannable>() {
-            @Override
-            public void onChanged(Spannable text) {
-                Log.d(TAG, "onChanged: "+ text);
-
-            }
-        });
-
-        CustomReceiver mCustomReceiver = new CustomReceiver(userViewModel);
-        LocalBroadcastManager.getInstance(this).registerReceiver(mCustomReceiver, new IntentFilter("Incoming_Message"));
-*/
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -117,17 +96,16 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             ToggleButton toggle_button = findViewById(id);
             toggle_button.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    switch (buttonView.getId()) {
-                        case R.id.btn_ALT:
-                            ALT_is_checked = isChecked;
-                            break;
-                        case R.id.btn_CTRL:
-                            CTRL_is_checked = isChecked;
-                            break;
-                        case R.id.btn_SHIFT:
-                            SHIFT_is_checked = isChecked;
-                            break;
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
+                {
+                    switch (buttonView.getId())
+                    {
+                        case R.id.btn_ALT:  ALT_is_checked = isChecked;
+                                            break;
+                        case R.id.btn_CTRL: CTRL_is_checked = isChecked;
+                                            break;
+                        case R.id.btn_SHIFT:SHIFT_is_checked = isChecked;
+                                            break;
                     }
                 }
             });
@@ -144,46 +122,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             }
         });
 
-//        main_text.setSpannableFactory(new Spannable.Factory(){
-//            @Override
-//            public Spannable newSpannable(CharSequence source) {
-//                return (Spannable) source;
-//            }
-//        });
-//        Keep in mind, it should be set from ViewHolder's constructor, not onBindViewHolder.
-//        When you get reference to it by findViewById.
-
-
         ViewPager vp_keyboard_pager = (ViewPager) findViewById(R.id.vp_keyboard_area);
         vp_keyboard_pager.setAdapter(new CustomPagerAdapter(this));
-
-       /* SeekBar seek_size = findViewById(R.id.seek_size);
-        seek_size.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                main_text.setTextSize(progress);
-            }
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
-        });
-        SeekBar seek_space = findViewById(R.id.seek_space);
-        seek_space.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                main_text.setTextSpacing(progress/100f);
-            }
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
-        });
-
-        main_text.setText2("CRAIG WAS HERE");
-*/
 
         LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
 
@@ -203,53 +143,15 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             m_bluetooth_device.createBond();
             m_bluetooth_connection.startClient(m_bluetooth_device, HC_05_UUID_INSECURE);
         }
-
-   //     initObservable();
     }
 
- /*   @SuppressLint("CheckResult")
-    private void initObservable()
-    {
-        Log.d(TAG, "initObservable: ");
-        Observable.create(new ObservableOnSubscribe<String>() {
-                    @SuppressLint("CheckResult")
-                    @Override
-                    public void subscribe(ObservableEmitter<String> emitter) throws Exception {
-                        // Set up your Bluetooth stream here
-                        InputStream inputStream = bluetoothSocket.getInputStream();
-                        byte[] buffer = new byte[1024];
-                        int bytes;
 
-                        while (true) {
-                            try {
-                                bytes = inputStream.read(buffer);
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                                    emitter.onNext(new String(buffer, StandardCharsets.UTF_8));
-                                }
-                            } catch (IOException e) {
-                                emitter.onError(e);
-                                break;
-                            }
-                        }
-
-                        emitter.onComplete();
-                    }
-                })
-                .subscribeOn(Schedulers.io())
-                .subscribe((Consumer<String>) bytes -> {
-                    // Handle the received data here
-                });
-    }
-*/
     private final BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (!intent.hasExtra("message"))    return;
 
             String message_to_send  = intent.getStringExtra("message");
-
-//            Log.d(TAG, "onReceive: message_to_send length: "+ message_to_send.length() );
-
             m_bluetooth_connection.write(message_to_send);
         }
     };
@@ -258,46 +160,44 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-//            char[] text = intent.getStringExtra("theMessage").toCharArray();
-//            main_text.setText(text);
-//            user.setName(String.valueOf(text));
-                String message = intent.getStringExtra("theMessage");
-//                String return_string = new String();
-//                for (char c: message.toCharArray())
-//                    return_string += (Integer.toHexString(c) + ' ');
-//            Log.d(TAG, "onReceive: " + return_string);
+        String message = intent.getStringExtra("theMessage");
 
-            if (message.length() > 0)
-                main_text.setText2(message);
+        if (message.length() > 0)
+            main_text.setText2(message);
         }
     };
 
     /**
      * Broadcast Receiver that detects bond state changes (Pairing status changes)
      */
-    private final BroadcastReceiver mBroadcastReceiver4 = new BroadcastReceiver() {
+    private final BroadcastReceiver mBroadcastReceiver4 = new BroadcastReceiver()
+    {
         @SuppressLint("MissingPermission")
         @Override
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(Context context, Intent intent) 
+        {
+            Log.d(TAG, "onReceive: BroadcastReceiver");
             final String action = intent.getAction();
 
-            if(action.equals(BluetoothDevice.ACTION_BOND_STATE_CHANGED)){
+            if(action.equals(BluetoothDevice.ACTION_BOND_STATE_CHANGED))
+            {
                 BluetoothDevice mDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 //3 cases:
                 //case1: bonded already
-                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED){
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED)
+                {
                     Log.d(TAG, "BroadcastReceiver: BOND_BONDED.");
                     //inside BroadcastReceiver4
                     m_bluetooth_device = mDevice;
                 }
+
                 //case2: creating a bone
-                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDING) {
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDING)
                     Log.d(TAG, "BroadcastReceiver: BOND_BONDING.");
-                }
+
                 //case3: breaking a bond
-                if (mDevice.getBondState() == BluetoothDevice.BOND_NONE) {
+                if (mDevice.getBondState() == BluetoothDevice.BOND_NONE)
                     Log.d(TAG, "BroadcastReceiver: BOND_NONE.");
-                }
             }
         }
     };
@@ -305,11 +205,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     public void start_BT_connection(BluetoothDevice device, UUID uuid)
     {
         Log.d(TAG, "start_BT_connection: Initializing RFCOMM Bluetooth Connection");
-
         m_bluetooth_connection.startClient(device, uuid);
     }
-
-    private Disposable eventDisposable;
 
     @Override
     public void onPause() {
@@ -319,9 +216,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         SharedPreferences.Editor shared_preferences_editor = sharedPreferences.edit();
         shared_preferences_editor.putString(getString(R.string.font_size_key), Float.toString(font_size));
         shared_preferences_editor.commit();
-
-//        eventDisposable.dispose();
-
     }
     @Override
     public void onResume()
@@ -337,10 +231,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         //main_text.setTextSize(TypedValue.COMPLEX_UNIT_SP, minSize);
     }
 
-    private void onEvent(MyEvent event) {
-        // Handle the event
-        m_bluetooth_connection.write(event.getData());
-    }
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key)
     {
@@ -356,7 +246,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
+    public boolean onCreateOptionsMenu(Menu menu)
+    {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
@@ -364,13 +255,15 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
+    public boolean onOptionsItemSelected(MenuItem item)
+    {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        switch (id) {
+        switch (id)
+        {
             case R.id.action_settings:
                 startActivity(new Intent(MainActivity.this, SettingsActivity.class));
                 Log.d(TAG, "onOptionsItemSelected: action_settings");
@@ -425,6 +318,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 .unregisterOnSharedPreferenceChangeListener(this);
         unregisterReceiver(mBroadcastReceiver4);
 
+        // I think the following was in case there's some flashing animation
         //wyse60_TextView.fcs.animator.end();
     }
 }
