@@ -6,3 +6,8 @@ This is a Wyse60 Emulator for Android. Right now, it's hard coded to initially c
 [works, kinda](https://youtu.be/IGKPn5WcEfY)
 
 [Demo 5.24.2023](https://youtu.be/n3Kk5B9B86I)
+
+TODO:
+  1. Keyboard
+  2. LocalBroadCastManager -> MVVM
+  3. Options Menu
