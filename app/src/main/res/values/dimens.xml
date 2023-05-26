@@ -1,3 +1,9 @@
 <resources>
-    <dimen name="fab_margin">16dp</dimen>
+    <dimen name="fieldWidth">400dp</dimen>
+    <dimen name="fieldMarginBottom">25dp</dimen>
+    <dimen name="labelMargin">15dp</dimen>
+    <dimen name="labelTextSize">20sp</dimen>
+
+    <dimen name="key_height">40dip</dimen>
+    <dimen name="symbol_key_height">50dip</dimen>
 </resources>

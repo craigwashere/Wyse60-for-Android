@@ -32,25 +32,6 @@
             tools:context=".ui.MainActivity"
             tools:showIn="@layout/activity_main">
 
-<!--            <TextView-->
-<!--                android:text="craig_was_here"-->
-<!--                android:id="@+id/main_view"-->
-<!--                android:layout_width="350dip"-->
-<!--                android:layout_height="350dp"-->
-<!--                android:background="@drawable/border"-->
-<!--                android:breakStrategy="simple"-->
-<!--                android:ems="80"-->
-<!--                android:fontFamily="@font/ubuntumono_r"-->
-<!--                android:inputType="text|textMultiLine"-->
-<!--                android:lines="42"-->
-<!--                android:singleLine="false"-->
-<!--                android:textSize="7sp"-->
-<!--                android:typeface="monospace"-->
-<!--                app:layout_constraintLeft_toLeftOf="parent"-->
-<!--                app:layout_constraintRight_toRightOf="parent"-->
-<!--                app:layout_constraintTop_toTopOf="parent"-->
-<!--                tools:ignore="SpeakableTextPresentCheck" />-->
-
             <com.craigwashere.wyse60.util.Wyse60view
                 android:id="@+id/main_view"
                 android:layout_width="350dp"
@@ -59,94 +40,25 @@
                 app:layout_constraintRight_toRightOf="parent"
                 app:layout_constraintTop_toTopOf="parent"/>
 
-            <!--            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center"
-                            app:layout_constraintTop_toBottomOf="@id/main_view"
-                            >
+            <!--
+            <EditText
+                android:id="@+id/textView"
+                android:layout_width="264dp"
+                android:layout_height="60dp"
+                android:text="TextView"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/main_view"
+                android:inputType="text" />
 
-                            <LinearLayout android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="wrap_content"
-                                android:orientation="vertical">
 
-                                <TextView android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:textAlignment="center"
-                                    android:text="Size"
-                                    android:gravity="center_horizontal" />
-
-                                <SeekBar android:id="@+id/seek_size"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:min="20"
-                                    android:max="40"
-                                    android:progress="30"/>
-                            </LinearLayout>
-                            <LinearLayout android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="wrap_content"
-                                android:orientation="vertical">
-
-                                <TextView android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:textAlignment="center"
-                                    android:text="Spacing"
-                                    android:gravity="center_horizontal" />
-
-                                <SeekBar android:id="@+id/seek_space"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:min="-20"
-                                    android:max="20"
-                                    android:progress="0"/>
-                            </LinearLayout>
-                        </LinearLayout>-->
-
-                        <androidx.viewpager.widget.ViewPager
-                            android:id="@+id/vp_keyboard_area"
-                            android:layout_width="match_parent"
-                            android:layout_height="200dp"
-                            app:layout_constraintTop_toBottomOf="@id/main_view"
-                            tools:ignore="SpeakableTextPresentCheck"
-                            tools:layout_editor_absoluteX="8dp" />
-
-            <Button
-                android:id="@+id/btn_escape"
-                android:layout_width="0dp"
+            <com.craigwashere.wyse60.util.SimpleIME
+                android:id="@+id/customKeyboardView"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginLeft="8dp"
-                android:text="Escape"
+                android:layout_alignParentBottom="true"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toStartOf="parent" />
-
-            <ToggleButton
-                android:id="@+id/btn_CTRL"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textOff="CTRL"
-                android:textOn="CTRL"
-                app:layout_constraintBottom_toBottomOf="@+id/btn_escape"
-                app:layout_constraintLeft_toRightOf="@+id/btn_escape" />
-
-            <ToggleButton
-                android:id="@+id/btn_SHIFT"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textOff="SHIFT"
-                android:textOn="SHIFT"
-                app:layout_constraintBottom_toBottomOf="@+id/btn_escape"
-                app:layout_constraintLeft_toRightOf="@id/btn_CTRL" />
-
-            <ToggleButton
-                android:id="@+id/btn_ALT"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textOff="ALT"
-                android:textOn="ALT"
-                app:layout_constraintBottom_toBottomOf="@+id/btn_escape"
-                app:layout_constraintLeft_toRightOf="@id/btn_SHIFT"/>
+                app:layout_constraintTop_toBottomOf="@id/main_view" />
+            -->
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>

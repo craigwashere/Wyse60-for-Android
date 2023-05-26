@@ -30,7 +30,7 @@ public class BluetoothConnectionService
     private int mState;
     private int mNewState;
 
-        private static final String TAG = "BluetoothConnService";
+    private static final String TAG = "BluetoothConnService";
     private static final String appName = "MYAPP";
     private static final UUID MY_UUID_INSECURE =
             UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
@@ -162,6 +162,7 @@ public class BluetoothConnectionService
     {
         private BluetoothSocket mmSocket;
 
+        @SuppressLint("MissingPermission")
         public ConnectThread(BluetoothDevice device, UUID uuid)
         {
             Log.d(TAG, "ConnectThread: started.");
@@ -305,11 +306,14 @@ public class BluetoothConnectionService
         //call this from the main activity to send  data to the remote device
         public void write(String bytes)
         {
-//            Log.d(TAG, "write: writing to output stream: " + bytes);
+            Log.d(TAG, "write: writing to output stream: " + bytes);
             try
             {
                 for (int i = 0; i < bytes.length(); i++)
+                {
+                    Log.d(TAG, "write: " + Integer.toHexString(bytes.charAt(i)));
                     mmOutStream.write(bytes.charAt(i));
+                }
             }
             catch (IOException e)
             {

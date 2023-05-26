@@ -1,8 +1,10 @@
 package com.craigwashere.wyse60.ui;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -68,6 +70,7 @@ public class SetupActivity extends AppCompatActivity
 
         enable_bt.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
         {
+            @SuppressLint("MissingPermission")
             @Override
             public void onCheckedChanged (CompoundButton buttonView, boolean isChecked) {
                 if (!isChecked) {
@@ -83,6 +86,7 @@ public class SetupActivity extends AppCompatActivity
 
         visible_bt.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
         {
+            @SuppressLint("MissingPermission")
             @Override
             public void onCheckedChanged (CompoundButton buttonView, boolean isChecked) {
                 if (!isChecked)
@@ -105,6 +109,7 @@ public class SetupActivity extends AppCompatActivity
 
 
         lv_bluetooth_devices.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @SuppressLint("MissingPermission")
             @Override
             public  void onItemClick(AdapterView<?> parent, View view, int position, long id){
                 //Toast.makeText(MainActivity.this, "Click ListItem Number " + position, Toast.LENGTH_SHORT).show();
@@ -119,8 +124,8 @@ public class SetupActivity extends AppCompatActivity
 
                 Intent return_intent = SetupActivity.this.getIntent();
                 Log.d(TAG, "onReceive: return_intent = " + return_intent.toString());
-                return_intent.putExtra("DEVICE_NAME", mBTDevices.get(position).getName());                                  //Add BLE device name to the intent
-                return_intent.putExtra("DEVICE_ADDRESS", mBTDevices.get(position).getAddress());                             //Add BLE device address to the intent
+                return_intent.putExtra("DEVICE_NAME", mBTDevices.get(position).getName());        //Add BLE device name to the intent
+                return_intent.putExtra("DEVICE_ADDRESS", mBTDevices.get(position).getAddress());   //Add BLE device address to the intent
 
                 SetupActivity.this.setResult(RESULT_OK, return_intent);
 
@@ -165,7 +170,11 @@ public class SetupActivity extends AppCompatActivity
     protected void onStop()
     {
         super.onStop();
-        unregisterReceiver(mBroadcastReceiver);
+        try {
+            unregisterReceiver(mBroadcastReceiver);
+        }
+        catch (IllegalArgumentException ignore)
+        { }
 //        unregisterReceiver(state_changed_broadcast_receiver);
     }
 
@@ -181,6 +190,7 @@ public class SetupActivity extends AppCompatActivity
         if (bluetooth_adapter == null)
             bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
 
+        @SuppressLint("MissingPermission")
         String name = bluetooth_adapter.getName();
         if (name == null)
             name = bluetooth_adapter.getAddress();
@@ -189,6 +199,7 @@ public class SetupActivity extends AppCompatActivity
     }
 
     private BroadcastReceiver state_changed_broadcast_receiver = new BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.d(TAG, "state_changed_broadcast_receiver");
@@ -221,6 +232,7 @@ public class SetupActivity extends AppCompatActivity
     };
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+        @SuppressLint("MissingPermission")
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
@@ -231,11 +243,7 @@ public class SetupActivity extends AppCompatActivity
             {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 mBTDevices.add(device);
-                /*Parcelable[] uuidExtra = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
-                for (int i=0; i<uuidExtra.length; i++)
-                {
-                    Log.d(TAG, "Device: " + device.getName() + ", " + device + ", Service: " + uuidExtra[i].toString());
-                }*/
+
                 Log.d(TAG, "onReceive: " + device.getName() + ": " + device.getAddress());
 
                 mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, mBTDevices);
@@ -244,6 +252,8 @@ public class SetupActivity extends AppCompatActivity
         }
     };
 
+    @SuppressLint("MissingPermission")
+    @RequiresApi(api = Build.VERSION_CODES.M)
     public void btnDiscover(View view)
     {
         Log.d(TAG, "btnDiscover: Looking for unpaired devices.");
@@ -265,6 +275,7 @@ public class SetupActivity extends AppCompatActivity
     }
 
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     private void check_bluetooth_permissions()
     {
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP)

@@ -928,7 +928,7 @@ public class Wyse60view extends View {
                         break;
             case 0x05:  /* 0x05  ENQ: Returns ACK, if not busy                              */
                         logDecode("enq()");
-                        if ((connected) && (ack_mode))
+//                        if ((connected) && (ack_mode))
                         {
                             char cfgIdentifier = 0x06;
                             sendUserInput(pty, Character.toString((cfgIdentifier)), 1);

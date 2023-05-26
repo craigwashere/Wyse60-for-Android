@@ -11,32 +11,26 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
-import androidx.viewpager.widget.ViewPager;
 
 import android.util.Log;
-import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
-import android.view.View;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
-import android.widget.CompoundButton;
-import android.widget.SeekBar;
-import android.widget.ToggleButton;
 
 import com.craigwashere.wyse60.util.BluetoothConnectionService;
-import com.craigwashere.wyse60.util.CustomPagerAdapter;
 import com.craigwashere.wyse60.R;
-//import com.craigwashere.wyse60.util.CustomReceiver;
-//import com.craigwashere.wyse60.util.MyEvent;
 import com.craigwashere.wyse60.util.Wyse60view;
+//import com.craigwashere.wyse60.util.components.keyboard.CustomKeyboardView;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener
@@ -54,26 +48,16 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     BluetoothDevice m_bluetooth_device;
     BluetoothConnectionService m_bluetooth_connection;
     SharedPreferences sharedPreferences;
-    private List<ToggleButton> toggleButtons;
-    private boolean CTRL_is_checked = false,
-                    SHIFT_is_checked = false,
-                    ALT_is_checked = false;
-
-    private static final int[] TOGGLE_BUTTON_IDS =
-            {
-                    R.id.btn_SHIFT,
-                    R.id.btn_CTRL,
-                    R.id.btn_ALT
-            };
-    private Button escape_button;
 
     Wyse60view main_text;
+//    CustomKeyboardView keyboard;
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //TextView main_text = findViewById(R.id.main_view);
+
         setContentView(R.layout.activity_main);
         main_text = findViewById(R.id.main_view);
 
@@ -90,40 +74,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         shared_preferences_editor.putString(getString(R.string.font_size_key), Float.toString(font_size));
         shared_preferences_editor.commit();
 
-        toggleButtons = new ArrayList<ToggleButton>();
-
-        for (int id : TOGGLE_BUTTON_IDS) {
-            ToggleButton toggle_button = findViewById(id);
-            toggle_button.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
-                {
-                    switch (buttonView.getId())
-                    {
-                        case R.id.btn_ALT:  ALT_is_checked = isChecked;
-                                            break;
-                        case R.id.btn_CTRL: CTRL_is_checked = isChecked;
-                                            break;
-                        case R.id.btn_SHIFT:SHIFT_is_checked = isChecked;
-                                            break;
-                    }
-                }
-            });
-            toggleButtons.add(toggle_button);
-        }
-
-        escape_button = (Button) findViewById(R.id.btn_escape);
-        escape_button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.d(TAG, "onClick: Escape button");
-                String message = Character.toString((char) 0x1b);
-                m_bluetooth_connection.write(message);
-            }
-        });
-
-        ViewPager vp_keyboard_pager = (ViewPager) findViewById(R.id.vp_keyboard_area);
-        vp_keyboard_pager.setAdapter(new CustomPagerAdapter(this));
+        show_keyboard();
 
         LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
 
@@ -134,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
         registerReceiver(mBroadcastReceiver4, filter);
 
-        /*---------------Following lines are debug shortcut -----------------------*/
+/*---------------Following lines are debug shortcut -----------------------*/
         BluetoothAdapter m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
         BluetoothDevice m_bluetooth_device = m_bluetooth_adapter.getRemoteDevice("00:21:79:DF:0A:7C");
 
@@ -145,6 +96,85 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
     }
 
+/*---------------show keyboard selection dialog and force keyboard to show -----------------------*/
+    private void show_keyboard()
+    {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+
+        Log.d(TAG, "show_keyboard: " + imm);
+
+        imm.showInputMethodPicker();
+        imm.showSoftInput(main_text, InputMethodManager.SHOW_IMPLICIT);
+        //force keyboard to show
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+    }
+/*---------------keyboard-----------------------*/
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event)
+    {
+        Log.d(TAG, "dispatchKeyEvent: " + event.getKeyCode());
+        int key_code = event.getKeyCode();
+        StringBuilder message = new StringBuilder();
+
+        //check for function keys
+        if ((key_code >= 131) && (key_code <= 142))
+        {
+            //for some reason 'F5' is different
+            if (key_code == 135) {
+                message.append((char) 0x3e);
+                message.append((char) 0x30);
+            } else {
+                message.append((char) 0x01);
+                message.append((char) (0x40 + (key_code - 131)));
+                Log.d(TAG, "dispatchKeyEvent: " + Integer.toHexString((char) 0x40 + (key_code - 131)));
+            }
+
+            if (event.isShiftPressed())
+            {
+                Log.d(TAG, "dispatchKeyEvent: SHIFT + F-Key pressed");
+                message.setCharAt(1, (char) (message.charAt(1) & 0x2f));
+            }
+
+            message.append((char) 0x0d);
+        }
+        else if (key_code == 127) //delete key pressed
+        {   //sending delete code (0x7f) doesn't command Wyse60 to delete a character, we have to
+            //send ESC W
+            message.append((char) 0x1b); //ESC
+            message.append((char) 0x87); //'W'
+        }
+        else if (key_code == 4) //KEYCODE_BACK
+        {
+            //if we don't intercept the back key code, '4' is sent to the bluetooth stream
+            //let's send ESC to go back a page
+            message.append((char)0x1b);
+        }
+        else
+        {
+            Log.d(TAG, "dispatchKeyEvent: unicodeChar: " + event.getUnicodeChar());
+            if (event.isShiftPressed())
+            {
+                Log.d(TAG, "dispatchKeyEvent: SHIFT pressed");
+                key_code &= 0x5f;
+            }
+            if (event.isAltPressed())
+            {
+                key_code &= 0x3f;
+                Log.d(TAG, "dispatchKeyEvent: ALT pressed");
+            }
+            if (event.isCtrlPressed())
+            {
+                key_code &= 0x1f;
+                Log.d(TAG, "dispatchKeyEvent: CTRL pressed");
+            }
+            message.append((char)key_code);
+        }
+
+        m_bluetooth_connection.write(message.toString());
+
+        return false;
+    }
 
     private final BroadcastReceiver mMessageReceiver = new BroadcastReceiver() {
         @Override
