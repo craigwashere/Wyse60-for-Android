@@ -5,9 +5,12 @@ This is a Wyse60 Emulator for Android. Right now, it's hard coded to initially c
 
 [works, kinda](https://youtu.be/IGKPn5WcEfY)
 
-[Demo 5.24.2023](https://youtu.be/n3Kk5B9B86I)
+[Demo 5.4.2023](https://youtu.be/n3Kk5B9B86I)
+
+5.25.2023: drawing pages and using a system keyboard. I will look into converting to an in-app keyboard in the future. Apparently, I need to update the bluetooth system as most of it is on the verge deprecation, if they're not deprecated already
 
 TODO:
-  1. Keyboard
-  2. LocalBroadCastManager -> MVVM
-  3. Options Menu
+  1. Keyboard [system keyboard](https://youtu.be/Za2E_1_mtyc)
+  2. update bluetooth
+  3. LocalBroadCastManager -> MVVM
+  4. Options Menu
