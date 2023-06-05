@@ -7,7 +7,8 @@ android {
         applicationId "com.craigwashere.wyse60"
         minSdkVersion 16
         multiDexEnabled true
-        targetSdkVersion 33
+        //noinspection ExpiredTargetSdkVersion
+        targetSdkVersion 29
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         versionCode 1
         versionName "1.0"

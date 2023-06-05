@@ -10,11 +10,15 @@ import android.view.inputmethod.InputConnection;
 
 import com.craigwashere.wyse60.R;
 
+import java.util.List;
+
 public class SimpleIME extends InputMethodService implements KeyboardView.OnKeyboardActionListener
 {
     final static String TAG = "SimpleIME";
     private KeyboardView m_keyboard_view;
     private Keyboard m_symbols_keyboard, m_qwerty_keyboard;
+
+    private final int KEYCODE_CTRL = -7;
 
     private boolean CTRL_is_checked = false;
     private boolean SHIFT_is_checked = false;
@@ -53,14 +57,17 @@ public class SimpleIME extends InputMethodService implements KeyboardView.OnKeyb
             case Keyboard.KEYCODE_DONE:     ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
                                             break;
             //for some reason, we don't have have a keycode for CTRL key
-            case 120:                       CTRL_is_checked = !CTRL_is_checked;
+            case KEYCODE_CTRL:              CTRL_is_checked = !CTRL_is_checked;
                                             break;
             case Keyboard.KEYCODE_MODE_CHANGE:  Keyboard current = m_keyboard_view.getKeyboard();
                                                 if(current == m_qwerty_keyboard) m_keyboard_view.setKeyboard(m_symbols_keyboard);
                                                 else                             m_keyboard_view.setKeyboard(m_qwerty_keyboard);
-                                                boolean temp = m_keyboard_view.getKeyboard().setShifted(SHIFT_is_checked);
 
-                Log.d(TAG, "onKey: KEYCODE_MODE_CHANGE" + temp);
+                                                //since we set a new keyboard, we have to get it again
+                                                current = m_keyboard_view.getKeyboard();
+                                                set_modifier_keys(current.getKeys());
+                                                current.setShifted(SHIFT_is_checked);
+                                                break;
             default:                        Log.d(TAG, "onKey: " + primaryCode);
 
                                             int META = 0;
@@ -77,12 +84,29 @@ public class SimpleIME extends InputMethodService implements KeyboardView.OnKeyb
         }
     }
 
+    private void set_modifier_keys(List<Keyboard.Key> keys)
+    {
+        //the 'isModifier' doesn't add a key to modifier group, so we have to cycle through all the keys
+        for (Keyboard.Key key : keys)
+        {
+            if (key.sticky)
+                switch(key.codes[0])
+                {
+                    case KEYCODE_CTRL:          key.on = CTRL_is_checked;   break;
+                    case Keyboard.KEYCODE_ALT:  key.on = ALT_is_checked;    break;
+                    case Keyboard.KEYCODE_SHIFT:key.on = SHIFT_is_checked;  break;
+                    default:    break; //don't know how we got here
+                }
+        }
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)
     {
         getCurrentInputConnection().sendKeyEvent(new KeyEvent(event));
         return true;
     }
+
     @Override
     public void onPress(int primaryCode)
     {   }

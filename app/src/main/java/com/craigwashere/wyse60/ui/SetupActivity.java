@@ -125,7 +125,7 @@ public class SetupActivity extends AppCompatActivity
                 Intent return_intent = SetupActivity.this.getIntent();
                 Log.d(TAG, "onReceive: return_intent = " + return_intent.toString());
                 return_intent.putExtra("DEVICE_NAME", mBTDevices.get(position).getName());        //Add BLE device name to the intent
-                return_intent.putExtra("DEVICE_ADDRESS", mBTDevices.get(position).getAddress());   //Add BLE device address to the intent
+                return_intent.putExtra("DEVICE_ADDRESS", mBTDevices.get(position).getAddress());  //Add BLE device address to the intent
 
                 SetupActivity.this.setResult(RESULT_OK, return_intent);
 
@@ -166,15 +166,19 @@ public class SetupActivity extends AppCompatActivity
         };*/
     }
 
+    /* This doesn't get called on first entry but on every subsequent entry. If we back out on the
+     * first entry and re-enter, there is no broadcast receiver to unregister so it will crash
+     * unless try-catch it    */
     @Override
-    protected void onStop()
-    {
+    protected void onStop() {
+        Log.d(TAG, "onStop: ");
         super.onStop();
-        try {
+        try
+        {
             unregisterReceiver(mBroadcastReceiver);
         }
         catch (IllegalArgumentException ignore)
-        { }
+        {   }
 //        unregisterReceiver(state_changed_broadcast_receiver);
     }
 
@@ -215,8 +219,8 @@ public class SetupActivity extends AppCompatActivity
                         lbl_discovering.setText("Connected to: " + mDevice.getName());
                         Intent return_intent = new Intent();
 
-                        return_intent.putExtra("DEVICE_NAME", mDevice.getName());                                  //Add BLE device name to the intent
-                        return_intent.putExtra("DEVICE_ADDRESS", mDevice.getAddress());                             //Add BLE device address to the intent
+                        return_intent.putExtra("DEVICE_NAME", mDevice.getName());        //Add BLE device name to the intent
+                        return_intent.putExtra("DEVICE_ADDRESS", mDevice.getAddress());  //Add BLE device address to the intent
 
 
                         SetupActivity.this.setResult(1, return_intent);

@@ -42,7 +42,7 @@ public class Wyse60view extends View {
         E_GOTO_COLUMN, E_SET_FIELD_ATTRIBUTE, E_SET_ATTRIBUTE,
         E_GRAPHICS_CHARACTER, E_SET_FEATURES, E_FUNCTION_KEY,
         E_SET_SEGMENT_POSITION, E_SELECT_PAGE, E_CSI_D, E_CSI_E,
-        E_ADV_FEATURES, E_LOAD_CHAR,
+        E_ADV_FEATURES, E_LOAD_CHAR, E_LINE_CODE, E_COLUMN_CODE, E_FILL_CHAR,
         E_FIELD_OR_MESSAGE, MESSAGE_UNSHIFTED, MESSAGE_SHIFTED
     }
 
@@ -68,6 +68,7 @@ public class Wyse60view extends View {
     int custom_display_attributes = 0;
     int bb_count = 0;
     boolean connected, m_display_message = true;
+    char fill_char;
 
     float m_write_pos_x, m_write_pos_y;
     float m_text_size = 24F, m_text_spacing = 0F;
@@ -794,8 +795,9 @@ public class Wyse60view extends View {
                         break;
             case 'c':   /* Set advanced parameters                                       */
                         /* not supported: advanced parameters */
-                        logDecode("setAdvancedParameters() /* NOT SUPPORTED */ [");
-                        mode = _mode.E_SKIP_ONE;
+                        logDecode("setAdvancedParameters()");
+                        logDecodeFlush();
+                        mode = _mode.E_ADV_FEATURES;
                         break;
             case 'd':   /* Line wrap mode, transparent printing, ...                     */
                         mode = _mode.E_CSI_D;
@@ -1076,7 +1078,7 @@ public class Wyse60view extends View {
                 }
                 catch (java.lang.StringIndexOutOfBoundsException e)
                 {
-                    Log.d(TAG, "normal: char out of range: " + ch);
+                    Log.d(TAG, "normal: char out of range: " + Integer.toHexString((int)ch));
                 }
                 finally
                 {
@@ -1097,10 +1099,10 @@ public class Wyse60view extends View {
                 switch (ch)
                 {
                     case 0x03:  logDecode("Graphics mode off");
-                        graphicsMode = 0;
+                                graphicsMode = 0;
                                 break;
                     case 0x02:	logDecode("Graphics mode on");
-                        graphicsMode = 1;
+                                graphicsMode = 1;
                                 break;
                     default:	normal(pty, enterGraphicsCharacter(ch));	break;
                 }
@@ -1164,6 +1166,20 @@ public class Wyse60view extends View {
                                     logDecodeFlush();
                                 } else
                                     targetColumn = 10 * targetColumn + (((int) (ch - '0')) & 0xFF);
+                                break;
+            case E_LINE_CODE:   Log.d(TAG, "Line code: " + (((int) (ch - ' ')) & 0xFF));
+                                targetRow = (((int) (ch - ' ')) & 0xFF);
+                                mode = _mode.E_COLUMN_CODE;
+                                break;
+            case E_COLUMN_CODE: Log.d(TAG, "Column code: "+ (((int) (ch - ' ')) & 0xFF));
+                                targetColumn = (((int) (ch - ' ')) & 0xFF);
+                                mode = _mode.E_FILL_CHAR;
+                                break;
+            case E_FILL_CHAR:   fill_char = ch;
+                                logDecode("Fill char: %c", ch);
+                                logDecodeFlush();
+                                m_main_text.clear_rectangle(targetRow, targetColumn, fill_char);
+                                mode = _mode.E_NORMAL;
                                 break;
             case E_SET_FIELD_ATTRIBUTE: if (ch != '0')
                                         {
@@ -1338,6 +1354,15 @@ public class Wyse60view extends View {
                                     {
                                         case 'A':   logDecode("Define and load character");
                                                     mode = _mode.E_LOAD_CHAR;
+                                                    break;
+                                        case 'H':   logDecode("Clear from cursor to point");
+                                                    logDecodeFlush();
+                                                    mode = _mode.E_LINE_CODE;
+                                                    break;
+                                        default:    logDecode("Advanced feature %i not supported", Integer.toHexString(ch));
+                                                    logDecodeFlush();
+                                                    mode = _mode.E_NORMAL;
+                                                    break;
                                     }
                                 break;
             case E_LOAD_CHAR:   if ((ch == 0X121) || (bb_count == 32))
@@ -1354,6 +1379,9 @@ public class Wyse60view extends View {
             case E_FIELD_OR_MESSAGE: switch (ch)
                                      {
                             /*0x28*/    case '(':   m_message_line.reset_x_pos();
+                                                    //this sometimes gets turned off and the command
+                                                    //to turn it back on isn't always sent
+                                                    m_display_message = true;
                                                     mode = _mode.MESSAGE_UNSHIFTED;
                                                     break;
                             /*0x29*/    case ')':   m_message_line.reset_x_pos();
@@ -1381,11 +1409,11 @@ public class Wyse60view extends View {
         }
     }
 
+    /*I don't think this does much as the canvas seems to be big enough for any draw command */
     public void requestNewGeometry(int pty, int width, int height)
     {
         logDecode("requestNewGeometry: " + width + ", " + height); logDecodeFlush();
 
-        Log.d(TAG, "requestNewGeometry: " + width + ", " + height);
         screenHeight = height;
         screenWidth = width;
 
