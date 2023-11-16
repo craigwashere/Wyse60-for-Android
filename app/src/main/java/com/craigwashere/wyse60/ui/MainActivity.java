@@ -1,19 +1,34 @@
 package com.craigwashere.wyse60.ui;
 
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.companion.AssociationInfo;
+import android.companion.AssociationRequest;
+import android.companion.BluetoothDeviceFilter;
+import android.companion.CompanionDeviceManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.MacAddress;
 import android.os.Build;
 import android.os.Bundle;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 
@@ -25,51 +40,57 @@ import android.view.View;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.craigwashere.wyse60.util.BluetoothConnectionService;
 import com.craigwashere.wyse60.R;
 import com.craigwashere.wyse60.util.Wyse60view;
 //import com.craigwashere.wyse60.util.components.keyboard.CustomKeyboardView;
-
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener
-{
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
     final static String TAG = "MainActivity";
-
     float font_size = 8.5f;
-
     private static final UUID MY_UUID_INSECURE =
             UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
-
     private static final UUID HC_05_UUID_INSECURE =
             UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-
+    //constant passed to startActivityForResult, The system passes this constant back to you in your
+    // onActivityResult() implementation as the requestCode parameter
+    private static final int REQUEST_ENABLE_BT = 4;
     BluetoothDevice m_bluetooth_device;
     BluetoothConnectionService m_bluetooth_connection;
     SharedPreferences sharedPreferences;
-
     Wyse60view main_text;
 //    CustomKeyboardView keyboard;
-
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-    @SuppressLint("MissingPermission")
+    @SuppressLint({"MissingPermission", "NewApi"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
-        main_text = findViewById(R.id.main_view);
 
+        main_text = findViewById(R.id.main_view);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        m_bluetooth_connection = new BluetoothConnectionService(this);
-        PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+        {
+            BluetoothAdapter bluetoothAdapter = check_bluetooth();
+            if (bluetoothAdapter != null)
+                Log.d(TAG, "onCreate: bluetooth adapter not null");
+            m_bluetooth_connection = new BluetoothConnectionService(this, bluetoothAdapter);
+//        else
+//            main_text.setText2("Bluetooth not Available :(");
+        }
+//        else
+//            m_bluetooth_connection = new BluetoothConnectionService(this);
 
+        PreferenceManager.setDefaultValues(this, R.xml.root_preferences, false);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         //sharedPreferences.registerOnSharedPreferenceChangeListener(this);
-
         SharedPreferences.Editor shared_preferences_editor = sharedPreferences.edit();
         shared_preferences_editor.putString(getString(R.string.font_size_key), Float.toString(font_size));
         shared_preferences_editor.commit();
@@ -77,25 +98,65 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         show_keyboard();
 
         LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, new IntentFilter("Incoming_Message"));
-
         //register receiver to send messages through bluetooth
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver, new IntentFilter("send_character"));
-
         //Broadcasts when bond state changes (ie:pairing)
+
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
         registerReceiver(mBroadcastReceiver4, filter);
 
-/*---------------Following lines are debug shortcut -----------------------*/
-        BluetoothAdapter m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
-        BluetoothDevice m_bluetooth_device = m_bluetooth_adapter.getRemoteDevice("00:21:79:DF:0A:7C");
+    /*---------------Following lines are debug shortcut -----------------------
+            BluetoothAdapter m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
+            BluetoothDevice m_bluetooth_device = m_bluetooth_adapter.getRemoteDevice("00:21:79:DF:0A:7C");
 
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            Log.d(TAG, "trying to pair with IOGEAR GBC232A Serial Adapter");
-            m_bluetooth_device.createBond();
-            m_bluetooth_connection.startClient(m_bluetooth_device, HC_05_UUID_INSECURE);
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                Log.d(TAG, "trying to pair with IOGEAR GBC232A Serial Adapter");
+                m_bluetooth_device.createBond();
+                m_bluetooth_connection.startClient(m_bluetooth_device, HC_05_UUID_INSECURE);
+            }*/
+    }
+    @SuppressLint("MissingPermission")
+    private BluetoothAdapter check_bluetooth()
+    {
+        // 6/22/2023 from Android's developer site
+        // check if bluetooth is 'supported' and enabled
+        BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
+        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+        if (bluetoothAdapter != null)
+        {
+            Log.d(TAG, "check_bluetooth: bluetooth adapter not null");
+            if (!bluetoothAdapter.isEnabled())
+            {
+                Log.d(TAG, "check_bluetooth: bluetooth not enabled");
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            }
         }
+
+        return bluetoothAdapter;
     }
 
+    private ActivityResultLauncher<String> permissionLauncherSingle = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            new ActivityResultCallback<Boolean>() {
+                @Override
+                public void onActivityResult(Boolean isGranted) {
+                    //here we will check if permission was now (from permission request dialog) or already granted or not. the param isGranted contains value true/false
+                    Log.d(TAG, "onActivityResult: isGranted: " + isGranted);
+
+                    if (isGranted) {
+                        //Permission granted now do the required task here or call the function for that
+//                        singlePermissionGranted();
+//                        m_bluetooth_connection = new BluetoothConnectionService(this, bluetoothAdapter);
+                        Toast.makeText(MainActivity.this, "Permission GRANTED...", Toast.LENGTH_SHORT).show();
+                    } else {
+                        //Permission was denied so can't do the task that requires that permission
+                        Log.d(TAG, "onActivityResult: Permission denied...");
+                        Toast.makeText(MainActivity.this, "Permission denied...", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+    );
 /*---------------show keyboard selection dialog and force keyboard to show -----------------------*/
     private void show_keyboard()
     {
@@ -120,6 +181,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         //check for function keys
         if ((key_code >= 131) && (key_code <= 142))
         {
+            if (key_code == 131)
+                Log.d(TAG, "dispatchKeyEvent: /*---------------keyboard-----------------------*/");
+
             //I don't think Wyse60 understands CTRL-Fx or ALT-Fx keys
             if (event.isCtrlPressed() || event.isAltPressed())
                 return false;
@@ -255,6 +319,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         shared_preferences_editor.putString(getString(R.string.font_size_key), Float.toString(font_size));
         shared_preferences_editor.commit();
     }
+
     @Override
     public void onResume()
     {
@@ -331,18 +396,17 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             {
                 String  device_name = data.getStringExtra("DEVICE_NAME"),
                         device_addr = data.getStringExtra("DEVICE_ADDRESS");
+
                 //main_text.append("device name: " + device_name + '\n');
                 //main_text.append("device address: " + device_addr + '\n');
 
                 BluetoothAdapter m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
                 BluetoothDevice m_bluetooth_device = m_bluetooth_adapter.getRemoteDevice(data.getStringExtra("DEVICE_ADDRESS"));
 
-                if(Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2)
-                {
-                    Log.d(TAG, "trying to pair with " + device_name);
-                    m_bluetooth_device.createBond();
-                    m_bluetooth_connection.startClient(m_bluetooth_device, HC_05_UUID_INSECURE);
-                }
+                Log.d(TAG, "trying to pair with " + device_name);
+
+                m_bluetooth_device.createBond();
+                m_bluetooth_connection.startClient(m_bluetooth_device, HC_05_UUID_INSECURE);
             }
         }
 

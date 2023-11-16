@@ -1,0 +1,23 @@
+This project is a mashup of a bluetooth chat program and Google's WYSE60 code. Until now, it will
+display simple pages, but crashes or begins to draw incorrectly if the page is too complex
+
+3/24/2023
+Data binding seems to work, but the title bar/tool bar doesn't display. Was calling setContentView
+twice, commented out `setContentView(R.layout.activity_main);` and app crashed on startup. Moved
+the databinding call above toolbar initialization, toolbar returned. Bluetooth read thread doesn't
+seem to run. I get Logd's showing "connected: starting,  ConnectedThread: starting... ConnectedThread: run: "
+Not sure if reading messages, just not processing, textview not updating
+
+still getting `The application may be doing too much work on its main thread.`
+
+4/28/23
+converted text area to a canvas a draw the characters individually. turned off a lot of the debugging,
+mostly printing the hex representation of the characters read; not getting the "too much work" message.
+draws characters in two colors and the reverse field. haven't done blinking text, still working on how
+to draw a cursor. "Enter" key sends wrong character. It's fixed now. apparently, we need a cursor
+color when drawing a cursor and a selected text color. I think I had a decoding error that was causing
+the app to crash
+
+5/1/23
+Scaling and dragging works, used sample code from Android's website. A Lot of their code is deprecated,
+still don't know how to get around LocalBroadCastManager

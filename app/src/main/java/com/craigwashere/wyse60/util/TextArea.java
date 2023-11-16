@@ -35,7 +35,7 @@ public class TextArea
                         invisible_background = 0x49,
                         dim_background = 0x4a;
 
-    private float m_single_font_width = 11.0F, m_single_font_height = 20.0F;
+    protected float m_single_font_width = 11.0F, m_single_font_height = 20.0F;
 
     int m_current_attribute;
 
@@ -228,5 +228,4 @@ public class TextArea
 
         }
     }
-
 }

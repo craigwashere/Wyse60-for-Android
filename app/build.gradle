@@ -5,7 +5,7 @@ android {
     compileSdkVersion 33
     defaultConfig {
         applicationId "com.craigwashere.wyse60"
-        minSdkVersion 16
+        minSdkVersion 23
         multiDexEnabled true
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 29

@@ -1,6 +1,7 @@
 package com.craigwashere.wyse60.util;
 
 //import android.app.ProgressDialog;
+
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -18,8 +19,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-//import static com.craigwashere.Wyse60.ui.MainActivity.TAG;
-
 public class BluetoothConnectionService
 {
     // Constants that indicate the current connection state
@@ -27,6 +26,7 @@ public class BluetoothConnectionService
     public static final int STATE_LISTEN = 1;     // now listening for incoming connections
     public static final int STATE_CONNECTING = 2; // now initiating an outgoing connection
     public static final int STATE_CONNECTED = 3;  // now connected to a remote device
+
     private int mState;
     private int mNewState;
 
@@ -49,6 +49,13 @@ public class BluetoothConnectionService
         Log.d(TAG, "BluetoothConnectionService: constructor");
         mContext = context;
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        start();
+    }
+
+    public BluetoothConnectionService(Context context, BluetoothAdapter bluetoothAdapter)
+    {
+        mContext = context;
+        mBluetoothAdapter = bluetoothAdapter;
         start();
     }
 
@@ -97,7 +104,7 @@ public class BluetoothConnectionService
                         appName, MY_UUID_INSECURE);
             } catch (IOException e)
             {
-                Log.e(TAG, "Socket Type: " + mSocketType + "listen() failed", e);
+                Log.e(TAG, "Socket Type: " + mSocketType + " listen() failed", e);
             }
             mmServerSocket = tmp;
             mState = STATE_LISTEN;

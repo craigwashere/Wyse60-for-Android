@@ -36,7 +36,7 @@ public class SetupActivity extends AppCompatActivity
     TextView name_bt, lbl_discovering;
     ListView lv_bluetooth_devices;
 
-    private BluetoothAdapter bluetooth_adapter;
+    private BluetoothAdapter m_bluetooth_adapter;
     private Set<BluetoothDevice> pairedDevices;
   //  private BroadcastReceiver state_changed_broadcast_receiver;
     Button btn_Discover;
@@ -45,7 +45,8 @@ public class SetupActivity extends AppCompatActivity
 
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setup);
 
@@ -57,16 +58,18 @@ public class SetupActivity extends AppCompatActivity
 
         name_bt.setText(getLocalBluetoothName());
 
-        bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
+        m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
 
-        if (bluetooth_adapter == null)
+        if (m_bluetooth_adapter == null)
         {
             Toast.makeText( this, "Bluetooth not supported", Toast.LENGTH_SHORT).show();
             finish();
         }
 
-        if (bluetooth_adapter.isEnabled())
+        if (m_bluetooth_adapter.isEnabled())
             enable_bt.setChecked(true);
+
+        add_paired_devices(m_bluetooth_adapter);
 
         enable_bt.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
         {
@@ -74,7 +77,7 @@ public class SetupActivity extends AppCompatActivity
             @Override
             public void onCheckedChanged (CompoundButton buttonView, boolean isChecked) {
                 if (!isChecked) {
-                    bluetooth_adapter.disable();
+                    m_bluetooth_adapter.disable();
                     Toast.makeText(getApplicationContext() , "Turned off", Toast.LENGTH_SHORT).show();
                 } else {
                     Intent intentOn = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -113,7 +116,7 @@ public class SetupActivity extends AppCompatActivity
             @Override
             public  void onItemClick(AdapterView<?> parent, View view, int position, long id){
                 //Toast.makeText(MainActivity.this, "Click ListItem Number " + position, Toast.LENGTH_SHORT).show();
-                bluetooth_adapter.cancelDiscovery();
+                m_bluetooth_adapter.cancelDiscovery();
 
                 String deviceName = mBTDevices.get(position).getName();
 
@@ -166,6 +169,23 @@ public class SetupActivity extends AppCompatActivity
         };*/
     }
 
+    private void add_paired_devices(BluetoothAdapter m_bluetooth_adapter)
+    {
+        @SuppressLint("MissingPermission")
+        Set<BluetoothDevice> pairedDevices = m_bluetooth_adapter.getBondedDevices();
+
+        if (pairedDevices.size() > 0) {
+            // There are paired devices. Get the name and address of each paired device.
+            for (BluetoothDevice device : pairedDevices)
+            {
+                mBTDevices.add(device);
+                mDeviceListAdapter = new DeviceListAdapter(this, R.layout.device_adapter_view, mBTDevices);
+                lv_bluetooth_devices.setAdapter(mDeviceListAdapter);
+            }
+        }
+
+    }
+
     /* This doesn't get called on first entry but on every subsequent entry. If we back out on the
      * first entry and re-enter, there is no broadcast receiver to unregister so it will crash
      * unless try-catch it    */
@@ -173,36 +193,41 @@ public class SetupActivity extends AppCompatActivity
     protected void onStop() {
         Log.d(TAG, "onStop: ");
         super.onStop();
-        try
-        {
-            unregisterReceiver(mBroadcastReceiver);
-        }
-        catch (IllegalArgumentException ignore)
-        {   }
-//        unregisterReceiver(state_changed_broadcast_receiver);
+        unregister_receivers();
     }
 
     @Override
     protected void onDestroy()
     {
         super.onDestroy();
-//        unregisterReceiver(state_changed_broadcast_receiver);
+        unregister_receivers();
+    }
+
+    private void unregister_receivers()
+    {
+        try
+        {
+            unregisterReceiver(m_device_found_receiver);
+            unregisterReceiver(state_changed_broadcast_receiver);
+        }
+        catch (IllegalArgumentException ignore)
+        {   }
     }
 
     public String getLocalBluetoothName()
     {
-        if (bluetooth_adapter == null)
-            bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
+        if (m_bluetooth_adapter == null)
+            m_bluetooth_adapter = BluetoothAdapter.getDefaultAdapter();
 
         @SuppressLint("MissingPermission")
-        String name = bluetooth_adapter.getName();
+        String name = m_bluetooth_adapter.getName();
         if (name == null)
-            name = bluetooth_adapter.getAddress();
+            name = m_bluetooth_adapter.getAddress();
 
         return name;
     }
 
-    private BroadcastReceiver state_changed_broadcast_receiver = new BroadcastReceiver() {
+    private final BroadcastReceiver state_changed_broadcast_receiver = new BroadcastReceiver() {
         @SuppressLint("MissingPermission")
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -215,7 +240,7 @@ public class SetupActivity extends AppCompatActivity
                 switch (mDevice.getBondState())
                 {
                     case BluetoothDevice.BOND_BONDED:   Log.d(TAG, "state_changed_broadcast_receiver: BOND_BONDED");
-                        bluetooth_adapter.cancelDiscovery();
+                        m_bluetooth_adapter.cancelDiscovery();
                         lbl_discovering.setText("Connected to: " + mDevice.getName());
                         Intent return_intent = new Intent();
 
@@ -235,7 +260,7 @@ public class SetupActivity extends AppCompatActivity
         }
     };
 
-    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver m_device_found_receiver = new BroadcastReceiver() {
         @SuppressLint("MissingPermission")
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -262,17 +287,17 @@ public class SetupActivity extends AppCompatActivity
     {
         Log.d(TAG, "btnDiscover: Looking for unpaired devices.");
 
-        if (bluetooth_adapter.isDiscovering())
-            bluetooth_adapter.cancelDiscovery();
+        if (m_bluetooth_adapter.isDiscovering())
+            m_bluetooth_adapter.cancelDiscovery();
 
-        bluetooth_adapter.startDiscovery();
+        m_bluetooth_adapter.startDiscovery();
 
         check_bluetooth_permissions();
 
         IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         if (discoverDevicesIntent == null) Log.d(TAG, "discoverDevicesIntent = null");
 
-        if (registerReceiver(mBroadcastReceiver, discoverDevicesIntent) == null)
+        if (registerReceiver(m_device_found_receiver, discoverDevicesIntent) == null)
             Log.d(TAG, "registerReceiver failed");
 
         lbl_discovering.setVisibility(View.VISIBLE);

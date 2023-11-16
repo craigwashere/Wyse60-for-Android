@@ -24,4 +24,27 @@ public class MainText extends TextArea
             }
         }
     }
+    public void delete_line()
+    {
+        // Creating iterator object
+        Iterator itr = text.iterator();
+
+        // Holds true till there is single element
+        // remaining in the object
+        while (itr.hasNext())
+        {
+            char_text c = (char_text) itr.next();
+            if (c.m_write_pos_y == (m_char_pos_y*m_current_font_height))
+                itr.remove();
+            else if (c.m_write_pos_y > (m_char_pos_y*m_current_font_height))
+                c.m_write_pos_y -= m_current_font_height;
+        }
+    }
+
+    public void insert_line()
+    {
+        for (char_text c : text)
+            if (c.m_write_pos_y >= (m_char_pos_y*m_current_font_height))
+                c.m_write_pos_y += m_single_font_height;
+    }
 }

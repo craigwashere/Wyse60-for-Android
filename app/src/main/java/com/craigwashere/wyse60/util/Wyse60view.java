@@ -307,7 +307,7 @@ public class Wyse60view extends View {
 
     public void logDecodeFlush() 
     {
-       // Log.d(TAG, debug_string);
+        //Log.d(TAG, debug_string);
         debug_string = "";
     }
 
@@ -673,9 +673,7 @@ public class Wyse60view extends View {
                         break;
             case 'E':   /* Inserts a row of spaces                                       */
                         logDecode("insertLine()");
-//                        moveScreenBuffer(0, m_char_pos_y,
-//                                logicalWidth() - 1, logicalHeight() - 1,
-//                                0, 1);
+                        m_main_text.insert_line();
                         break;
             case 'F':   /* Enters a message in the host message field                    */
                         /* not supported: messages */
@@ -734,9 +732,7 @@ public class Wyse60view extends View {
                         break;
             case 'R':   /* Deletes a row                                                 */
                         logDecode("deleteLine()");
-//                        moveScreenBuffer(0, m_char_pos_y + 1,
-//                                logicalWidth() - 1, logicalHeight() - 1,
-//                                0, 1);
+                        m_main_text.delete_line();
                         break;
             case 'S':   /* Sends a message unprotected                                   */
                         /* not supported: messages */
@@ -1268,7 +1264,7 @@ public class Wyse60view extends View {
                                     }
                                     break;
             case E_SET_SEGMENT_POSITION:    logDecode("NOT SUPPORTED [ 0x1B 0x78 0x" + Integer.toHexString(ch)+ " ]");
-                                            if (ch == '0')
+                                            if ((ch == '0') || (ch == '@'))
                                             {
                                                 /* not supported: text segments */
                                                 logDecode(" ]");
