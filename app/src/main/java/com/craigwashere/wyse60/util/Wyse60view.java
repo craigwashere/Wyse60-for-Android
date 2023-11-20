@@ -1,36 +1,28 @@
 package com.craigwashere.wyse60.util;
 
 import static android.view.MotionEvent.INVALID_POINTER_ID;
+import static com.craigwashere.wyse60.data.Constants.graphicsCharacters;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BlendMode;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.graphics.PorterDuff;
-import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.os.Build;
-import android.os.Handler;
-import android.text.Spannable;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 
-import androidx.core.view.MotionEventCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import io.reactivex.rxjava3.subjects.PublishSubject;
+//import io.reactivex.rxjava3.subjects.PublishSubject;
+
+import com.craigwashere.wyse60.data.Constants.characterAttributes;
 
 public class Wyse60view extends View {
     private static final String TAG = "Wyse60";
@@ -46,57 +38,46 @@ public class Wyse60view extends View {
         E_FIELD_OR_MESSAGE, MESSAGE_UNSHIFTED, MESSAGE_SHIFTED
     }
 
-    private static final short T_NORMAL = 0x30,
-            T_BLANK = 0x01,
-                T_BLINK = 0x02,
-            T_REVERSE = 0x04,
-            T_UNDERSCORE = 0x08,
-            T_DIM = 0x40,
-            T_BOTH = 68,
-            T_ALL = 0x7f,
-            T_PROTECTED = 256,
-            T_GRAPHICS = 512;
-
     _mode mode = _mode.E_NORMAL;
-    int screenWidth = 80, screenHeight = 42, originalWidth, originalHeight;
-    int needsReset, needsClearingBuffers, isPrinting;
+    int screenWidth = 80, screenHeight = 42;
+//    int needsReset, needsClearingBuffers, isPrinting, originalWidth, originalHeight;;
     int _protected, writeProtection, m_current_attributes;
-    int normalAttributes, protectedAttributes = T_REVERSE;
-    int protectedPersonality = T_REVERSE;
-    int insertMode, graphicsMode, cursorIsHidden, currentPage;
-    int changedDimensions, targetColumn, targetRow;
+    int normalAttributes, protectedAttributes = characterAttributes.T_REVERSE;
+    int protectedPersonality = characterAttributes.T_REVERSE;
+    int insertMode, graphicsMode, currentPage, targetColumn, targetRow;
+//    int changedDimensions, cursorIsHidden;
     int custom_display_attributes = 0;
     int bb_count = 0;
     boolean connected, m_display_message = true;
     char fill_char;
 
     float m_write_pos_x, m_write_pos_y;
-    float m_text_size = 24F, m_text_spacing = 0F;
+    float m_text_size = 24F;
+//    , m_text_spacing = 0F;
     float m_font_width = 11.0F, m_font_height = 20.0F;
     int m_char_pos_x, m_char_pos_y;
     boolean ack_mode = false;
-    private String drawText = "craig was here";
     Paint mPaintText;
     ConcurrentLinkedQueue<String> message_queue;
 
     boolean show_cursor = true;
 
-    public void setTextSize(int value)
+    /*public void setTextSize(int value)
     {
         m_text_size = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                (float) value, getResources().getDisplayMetrics()
+            TypedValue.COMPLEX_UNIT_DIP,
+            (float) value, getResources().getDisplayMetrics()
         );
         invalidate();
     }
 
     public void setTextSpacing(float value) {
         m_text_spacing = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                (float) value, getResources().getDisplayMetrics()
+            TypedValue.COMPLEX_UNIT_DIP,
+            (float) value, getResources().getDisplayMetrics()
         );
         invalidate();
-    }
+    }*/
 
 
     MainText m_main_text;
@@ -115,7 +96,7 @@ public class Wyse60view extends View {
             String element = message_queue.remove();
 //            Log.d(TAG, "onDraw: " + mode + ' ' + char_to_hex(element));
             for (char c : element.toCharArray()) {
-                outputCharacter(0, (char) c);
+                outputCharacter(0, c);
             }
         }
 
@@ -243,7 +224,7 @@ public class Wyse60view extends View {
     {
         mPaintText.setAlpha(200);
 
-        canvas.drawRect(m_write_pos_x, (float) m_write_pos_y,
+        canvas.drawRect(m_write_pos_x, m_write_pos_y,
                 m_write_pos_x+m_font_width, m_write_pos_y-m_font_height, mPaintText );
     }
 
@@ -258,6 +239,9 @@ public class Wyse60view extends View {
     public Wyse60view(Context context)
     {
         super(context);
+
+        mContext = context;
+
         Log.d(TAG, "wyse60_TextView: (Context context)");
 //        currentBuffer = new ScreenBuffer();
 
@@ -288,6 +272,7 @@ public class Wyse60view extends View {
         mScaleGestureDetector = new ScaleGestureDetector(context, new ScaleListener());
 
         m_main_text = new MainText(m_text_size);
+
         m_status_line = new StatusLine(screenHeight, m_text_size);
         m_message_line = new MessageLine(screenHeight+1, m_text_size);
     }
@@ -318,7 +303,7 @@ public class Wyse60view extends View {
 
     private void setFeatures(int attributes)
     {
-        attributes &= T_ALL;
+        attributes &= characterAttributes.T_ALL;
         protectedPersonality = attributes;
         updateAttributes();
     }
@@ -340,28 +325,16 @@ public class Wyse60view extends View {
         m_main_text.change_attribute(attributes);
     }
 
-    private int[] string_to_int_array(String message)
-    {
-        int message_length = message.length();
-        char[] message2 = message.toCharArray();
-
-        int[] return_array = new int[message_length];
-
-        for (int i = 0; i < message_length; i++)
-            return_array[i] = (int)message2[i];
-
-        return return_array;
-    }
-
     private String char_to_hex(String message)
     {
-        String return_string = new String();
+        StringBuilder return_string = new StringBuilder();
         for (char c: message.toCharArray())
-            return_string += (Integer.toHexString(c) + ' ');
+            return_string.append(Integer.toHexString(c)).append(' ');
 
-        return return_string;
+        return return_string.toString();
     }
-    public void sendUserInput(int pty, String message, int message_length)
+
+    public void sendUserInput(int pty, String message)
     {
         Log.d(TAG, "sendUserInput: ");
         //publishEvent(new MyEvent(message));
@@ -405,7 +378,7 @@ public class Wyse60view extends View {
         m_message_line.reset_x_pos();
     }
 
-    public void _moveScreenBuffer(float x1, float y1, float x2, float y2,
+    /*public void _moveScreenBuffer(float x1, float y1, float x2, float y2,
                                   float dx, float dy)
     {   }
 
@@ -422,7 +395,7 @@ public class Wyse60view extends View {
         if (y1 < 0)             y1 = 0;
         if (y2 >= screenHeight) y2 = screenHeight - 1;
         _clearScreenBuffer(x1, y1, x2, y2, attributes, fillChar);
-    }
+    }*/
 
 
     public void clearExcessBuffers()
@@ -430,12 +403,12 @@ public class Wyse60view extends View {
 
     }
 
-    public void moveScreenBuffer(float x1, float y1, float x2, float y2,
+   /* public void moveScreenBuffer(float x1, float y1, float x2, float y2,
                                  float dx, float dy)
     {
         clearExcessBuffers();
         _moveScreenBuffer(x1, y1, x2, y2, dx, dy);
-    }
+    }*/
 
     public void gotoXY(int x, int y)
     {
@@ -451,32 +424,32 @@ public class Wyse60view extends View {
     }
 
 
-    public void gotoXYforce(int x, int y)
+//    public void gotoXYforce(int x, int y)
+//    {
+//        int width = logicalWidth();
+//        int height = logicalHeight();
+//        //char buffer[1024];
+//
+//        /* This function gets called when we do not know where the cursor currently*/
+//        /* is. So, the safest thing is to use absolute cursor addressing (if       */
+//        /* available) to force the cursor position. Otherwise, we fall back on     */
+//        /* relative positioning and keep our fingers crossed.                      */
+//        if (x >= width) x = width - 1;
+//        if (x < 0) x = 0;
+//        if (y >= height) y = height - 1;
+//        if (y < 0) y = 0;
+//
+//        logDecode("gotoXYforce: x=%d, y=%d", x, y);
+//    }
+
+
+    public void gotoXYScroll(int x, int y)
     {
-        int width = logicalWidth();
-        int height = logicalHeight();
-        //char buffer[1024];
-
-        /* This function gets called when we do not know where the cursor currently*/
-        /* is. So, the safest thing is to use absolute cursor addressing (if       */
-        /* available) to force the cursor position. Otherwise, we fall back on     */
-        /* relative positioning and keep our fingers crossed.                      */
-        if (x >= width) x = width - 1;
-        if (x < 0) x = 0;
-        if (y >= height) y = height - 1;
-        if (y < 0) y = 0;
-
-        logDecode("gotoXYforce: x=%d, y=%d", x, y);
-    }
-
-
-    public void gotoXYscroll(int x, int y)
-    {
-        int width = logicalWidth();
-        int height = logicalHeight();
+//        int width = logicalWidth();
+//        int height = logicalHeight();
         //char buffer[ 1024];
 
-        logDecode("gotoXYscroll: x=%d, y=%d\n", x, y);
+        logDecode("gotoXYScroll: x=%d, y=%d\n", x, y);
 
         gotoXY(x, y);
     }
@@ -488,21 +461,12 @@ public class Wyse60view extends View {
 //        clearExcessBuffers();
 
         m_main_text.clear_to_end_of_line();
-//        for (Iterator<char_text> iterator = chars.iterator(); iterator.hasNext(); )
-//        {
-//            char_text value = iterator.next();
-//            if ((value.m_write_pos_y == m_write_pos_y) && (value.m_write_pos_x >= m_write_pos_x))
-//            {
-//                value.m_attribute = T_NORMAL;
-//                value.character_to_print = ' ';
-//            }
-//        }
     }
 
     public void clearEos()
     {
-        int width = logicalWidth();
-        int height = logicalHeight();
+//        int width = logicalWidth();
+//        int height = logicalHeight();
         clearExcessBuffers();
 
         logDecode("clearEOS");
@@ -514,17 +478,17 @@ public class Wyse60view extends View {
 
     public void escape(int pty, char ch)
     {
-        logDecode(Character.toString(ch) + ": " +Integer.toHexString(ch));
+        logDecode(ch + ": " +Integer.toHexString(ch));
         logDecodeFlush();
 
-        String buffer = "";
+        StringBuilder buffer = new StringBuilder();
         mode = _mode.E_NORMAL;
         custom_display_attributes = 0;
         switch (ch) {
             case ' ':   /* Reports the terminal identification                           */
                 Log.d(TAG, "escape: sendTerminalId()");
                         logDecode("sendTerminalId()");
-                        sendUserInput(pty, "60\r", 3);
+                        sendUserInput(pty, "60\r");
                         connected = true;
                         break;
             case '!':   /* Writes all unprotected character positions with an attribute  */
@@ -576,7 +540,7 @@ public class Wyse60view extends View {
                         logDecode(" ()");
                         setProtected(1);
                         setWriteProtection(0);
-                        fillScreen(T_PROTECTED + protectedPersonality, ' ');
+                        fillScreen(characterAttributes.T_PROTECTED + protectedPersonality, ' ');
                         break;
             case '-':   /* Moves cursor to a specified text segment                      */
                         /* not supported: text segments */
@@ -589,9 +553,8 @@ public class Wyse60view extends View {
             case '/':   {/* Transmits the active text segment number and cursor address   */
                         /* not supported: text segments */
                         logDecode("sendCursorAddress()");
-                        buffer.format(" %c%c\r", (m_char_pos_y + 32),
-                                (m_char_pos_x + 32));
-                        sendUserInput(pty, buffer, 4);
+                        buffer.append(new char[]{(char)(m_char_pos_y + 32), (char)(m_char_pos_x + 32)});
+                        sendUserInput(pty, buffer.toString());
                         }
                         break;
             case '0':   /* Clears all tab settings                                       */
@@ -644,9 +607,8 @@ public class Wyse60view extends View {
                         break;
             case '?':   /* Transmits the cursor address for the active text segment      */
                         logDecode("sendCursorAddress()");
-                        buffer.format("%c%c\r", (m_char_pos_y + 32),
-                                (m_char_pos_x + 32));
-                        sendUserInput(pty, buffer, 3);
+                        buffer.append(new char[]{(char) (m_char_pos_y + 32), (char) (m_char_pos_x + 32), '\r'});
+                        sendUserInput(pty, buffer.toString());
                         break;
             case '@':   /* Sends all unprotected characters from start of text to aux    */
                         /* port                                                          */
@@ -710,7 +672,7 @@ public class Wyse60view extends View {
             case 'M':   /* Transmit character at cursor position to host                 */
                         /* not supported: screen sending */
                         logDecode("sendCharacter() /* NOT SUPPORTED */");
-                        sendUserInput(pty, "\000", 1);
+                        sendUserInput(pty, "\000");
                         break;
             case 'N':   /* Turns no-scroll submode on                                    */
                         /* not supported: scroll mode */
@@ -786,8 +748,9 @@ public class Wyse60view extends View {
                         break;
             case 'b':   /* Transmits the cursor address to the host                      */
                         logDecode("sendCursorAddress()");
-                        buffer.format("%dR%dC", m_char_pos_y + 1, m_char_pos_x + 1);
-                        sendUserInput(pty, buffer, buffer.length());
+//                        buffer.format("%dR%dC", m_char_pos_y + 1, m_char_pos_x + 1);
+                        buffer.append(new char[]{(char) (m_char_pos_y + 1), 'R', (char) (m_char_pos_x + 1), 'C'});
+                        sendUserInput(pty, buffer.toString());
                         break;
             case 'c':   /* Set advanced parameters                                       */
                         /* not supported: advanced parameters */
@@ -808,7 +771,7 @@ public class Wyse60view extends View {
                         break;
             case 'j':   /* Moves cursor up one row and scrolls if in top row             */
                         logDecode("moveUpAndScroll()");
-                        gotoXYscroll(m_char_pos_x, m_char_pos_y + 1);
+                        gotoXYScroll(m_char_pos_x, m_char_pos_y + 1);
                         break;
             case 'k':   /* Turns local edit submode on                                   */
                         /* not supported: local edit mode */
@@ -929,7 +892,7 @@ public class Wyse60view extends View {
 //                        if ((connected) && (ack_mode))
                         {
                             char cfgIdentifier = 0x06;
-                            sendUserInput(pty, Character.toString((cfgIdentifier)), 1);
+                            sendUserInput(pty, Character.toString((cfgIdentifier)));
                         }
                         logDecodeFlush();
                         break;
@@ -962,7 +925,7 @@ public class Wyse60view extends View {
             case 0x0a:  /* 0x0A  LF:  Moves cursor down                                     */
                         logDecode("moveDown() %d, %d", m_char_pos_x, m_char_pos_y);
                         logDecodeFlush();
-                        gotoXYscroll(m_char_pos_x, m_char_pos_y + 1);
+                        gotoXYScroll(m_char_pos_x, m_char_pos_y + 1);
                         break;
             case 0x0b:  /* 0x0B  VT:  Moves cursor up                                       */
                         logDecode("moveUp()");
@@ -1056,36 +1019,33 @@ public class Wyse60view extends View {
             case 0x1f:  /* 0x1F  US:  Moves cursor down one row to column one               */
                         logDecode("moveDown() ");
                         logDecode("return()");
-                        gotoXYscroll(0, m_char_pos_y + 1);
+                        gotoXYScroll(0, m_char_pos_y + 1);
                         logDecodeFlush();
                         break;
             case 0x7f:  /* 0x7F  DEL: Delete character                                      */
                         logDecode("del() /* no action */");
                         logDecodeFlush();
                         break;
-            default:
-                String graphicsCharacters = "┬└┌┐├┘│█┼┤─▓═┴║▒";
-//                Log.d(TAG, "normal: " + ch);
-
-                char replacing_char = 0;
-                try 
-                {
-                    replacing_char = (graphicsMode == 0)? ch : graphicsCharacters.charAt((int)(ch-'0'));
-                }
-                catch (java.lang.StringIndexOutOfBoundsException e)
-                {
-                    Log.d(TAG, "normal: char out of range: " + Integer.toHexString((int)ch));
-                }
-                finally
-                {
-                    m_main_text.add_char(replacing_char);
-                    m_char_pos_x++;
-                    m_write_pos_x += m_font_width;
-                }
+            default:    char replacing_char = 0;
+                        try
+                        {
+                            replacing_char = (graphicsMode == 0)? ch : graphicsCharacters.charAt((ch-'0'));
+                        }
+                        catch (java.lang.StringIndexOutOfBoundsException e)
+                        {
+                            Log.d(TAG, "normal: char out of range: " + Integer.toHexString(ch));
+                        }
+                        finally
+                        {
+                            m_main_text.add_char(replacing_char);
+                            m_char_pos_x++;
+                            m_write_pos_x += m_font_width;
+                        }
         }
     }
-    public void putGraphics ( char ch)
+    public void putGraphics (char ch)
     {
+        logDecode("putGraphics: " + ch);
     }
 
     public void outputCharacter (int pty, char ch)
@@ -1100,7 +1060,7 @@ public class Wyse60view extends View {
                     case 0x02:	logDecode("Graphics mode on");
                                 graphicsMode = 1;
                                 break;
-                    default:	normal(pty, enterGraphicsCharacter(ch));	break;
+                    default:	normal(pty, graphicsCharacters.charAt((ch-'0')));	break;
                 }
                 mode = _mode.E_NORMAL;
 
@@ -1113,7 +1073,7 @@ public class Wyse60view extends View {
             case E_SKIP_ONE:    mode = _mode.E_NORMAL;
                                 logDecode(" 0x" + Integer.toHexString(ch) + " ]");
                                 break;
-            case E_STATUS_LINE:   if (ch == '\r')
+            case E_STATUS_LINE: if (ch == '\r')
                                 {
                                     logDecode(" ]");
                                     logDecodeFlush();
@@ -1135,7 +1095,7 @@ public class Wyse60view extends View {
                                     logDecode(" " + Integer.toHexString(ch));
                                 break;
             case E_FILL_SCREEN: logDecode("fillScreen(0x" + Integer.toHexString(ch));
-                                fillScreen(T_NORMAL, ch);
+                                fillScreen(characterAttributes.T_NORMAL, ch);
                                 break;
             case E_GOTO_SEGMENT:        /* not supported: text segments */
                                 mode = _mode.E_GOTO_ROW_CODE;
@@ -1152,7 +1112,7 @@ public class Wyse60view extends View {
             case E_GOTO_ROW:    if (ch == 'R')
                                     mode = _mode.E_GOTO_COLUMN;
                                 else
-                                    targetRow = 10 * targetRow + (((int) (ch - '0')) & 0xFF);
+                                    targetRow = 10 * targetRow + (((ch - '0')) & 0xFF);
                                 break;
             case E_GOTO_COLUMN: if (ch == 'C')
                                 {
@@ -1161,14 +1121,14 @@ public class Wyse60view extends View {
                                     mode = _mode.E_NORMAL;
                                     logDecodeFlush();
                                 } else
-                                    targetColumn = 10 * targetColumn + (((int) (ch - '0')) & 0xFF);
+                                    targetColumn = 10 * targetColumn + (((ch - '0')) & 0xFF);
                                 break;
-            case E_LINE_CODE:   Log.d(TAG, "Line code: " + (((int) (ch - ' ')) & 0xFF));
-                                targetRow = (((int) (ch - ' ')) & 0xFF);
+            case E_LINE_CODE:   Log.d(TAG, "Line code: " + (((ch - ' ')) & 0xFF));
+                                targetRow = (((ch - ' ')) & 0xFF);
                                 mode = _mode.E_COLUMN_CODE;
                                 break;
-            case E_COLUMN_CODE: Log.d(TAG, "Column code: "+ (((int) (ch - ' ')) & 0xFF));
-                                targetColumn = (((int) (ch - ' ')) & 0xFF);
+            case E_COLUMN_CODE: Log.d(TAG, "Column code: "+ (((ch - ' ')) & 0xFF));
+                                targetColumn = (((ch - ' ')) & 0xFF);
                                 mode = _mode.E_FILL_CHAR;
                                 break;
             case E_FILL_CHAR:   fill_char = ch;
@@ -1186,12 +1146,12 @@ public class Wyse60view extends View {
                                             mode = _mode.E_SET_ATTRIBUTE;
                                         break;
             case E_SET_ATTRIBUTE:   logDecode("setAttribute(%s%s%s%s%s%s)",
-                                            ((ch & T_ALL) == T_NORMAL)          ? " NORMAL"     : "",
-                                            (((ch & T_ALL) & T_REVERSE) != 0)   ? " REVERSE"    : "",
-                                            (((ch & T_ALL) & T_DIM) != 0)       ? " DIM"        : "",
-                                            (((ch & T_ALL) & T_UNDERSCORE) != 0)? " UNDERSCORE" : "",
-                                            (((ch & T_ALL) & T_BLINK) != 0)     ? " BLINK"      : "",
-                                            (((ch & T_ALL) & T_BLANK) != 0)     ? " BLANK"      : "");
+                                            ((ch & characterAttributes.T_ALL) == characterAttributes.T_NORMAL)          ? " NORMAL"     : "",
+                                            (((ch & characterAttributes.T_ALL) & characterAttributes.T_REVERSE) != 0)   ? " REVERSE"    : "",
+                                            (((ch & characterAttributes.T_ALL) & characterAttributes.T_DIM) != 0)       ? " DIM"        : "",
+                                            (((ch & characterAttributes.T_ALL) & characterAttributes.T_UNDERSCORE) != 0)? " UNDERSCORE" : "",
+                                            (((ch & characterAttributes.T_ALL) & characterAttributes.T_BLINK) != 0)     ? " BLINK"      : "",
+                                            (((ch & characterAttributes.T_ALL) & characterAttributes.T_BLANK) != 0)     ? " BLANK"      : "");
                                     setAttributes(ch);
                                     custom_display_attributes = 1;
                                     mode = _mode.E_NORMAL;
@@ -1218,11 +1178,11 @@ public class Wyse60view extends View {
                                 logDecode("dimCursor()");
                                 break;
                     case '6':   /* Reverse protected character                                 */
-                                setFeatures(T_REVERSE);
+                                setFeatures(characterAttributes.T_REVERSE);
                                 logDecode("reverseProtectedCharacters()");
                                 break;
                     case '7':   /* Dim protected character                                     */
-                                setFeatures(T_DIM);
+                                setFeatures(characterAttributes.T_DIM);
                                 logDecode("dimProtectedCharacters()");
                                 break;
                     case '8':   /* Screen display off                                          */
@@ -1244,7 +1204,7 @@ public class Wyse60view extends View {
                                 logDecode("NOT SUPPORTED [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
                                 break;
                     case 'A':       /* Normal protected character                                  */
-                                setFeatures(T_NORMAL);
+                                setFeatures(characterAttributes.T_NORMAL);
                                 logDecode("normalProtectedCharacters()");
                                 break;
                     default:    logDecode("UNKNOWN FEATURE [ 0x1B 0x60 0x" + Integer.toHexString(ch)+ " ]");
@@ -1462,31 +1422,4 @@ public class Wyse60view extends View {
 //            }, 10);
 //*/
 //    }
-
-    public char enterGraphicsCharacter(char key)
-    {
-        char output_char;
-        switch (key)
-        {
-            case '0':   output_char = '┬';  break; /*xc2 = ┬ */
-            case '1':   output_char = '└';  break; /*xc0  = └ */
-            case '2':   output_char = '┌';  break; /*\xda  = ┌ */
-            case '3':   output_char = '┐';  break; /* \xbf = ┐ */
-            case '4':   output_char = '├';  break; /* \xc3 = ├ */
-            case '5':   output_char = '┘';  break; /* \xd9 = ┘ */
-            case '6':   output_char = '│';  break; /* \xb3 = │ */
-            case '7':   output_char = '█';  break; /* '\333' \xdb = █ */
-            case '8':   output_char = '┼';  break; /* \xc5 = ┼ */
-            case '9':   output_char = '┤';  break; /* \xb4 = ┤ */
-            case ':':   output_char = '─';  break; /* \xc4 = ─ */
-            case ';':   output_char = '▓';  break; /* \xb2 = ▓ */
-            case '<':   output_char = '═';  break; /* \xcd = ═'\315' */
-            case '=':   output_char = '┴';  break; /* \xc1 = ┴ */
-            case '>':   output_char = '║';  break; /* \xba = ║ */
-            case '?':   output_char = '▒';  break; /* \xb1 = ▒ */
-            default:    output_char = ' ';  break;
-        }
-
-        return output_char;
-    }
 }
