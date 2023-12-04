@@ -178,69 +178,69 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         int key_code = event.getKeyCode();
         StringBuilder message = new StringBuilder();
 
-        //check for function keys
-        if ((key_code >= 131) && (key_code <= 142))
+        switch (key_code)
         {
-            if (key_code == 131)
-                Log.d(TAG, "dispatchKeyEvent: /*---------------keyboard-----------------------*/");
+            case 4: //if we don't intercept the back key code, '4' is sent to the bluetooth stream
+                    //let's send ESC to go back a page
+                    message.append((char)0x1b);
+                    break;
+            case 9: if (event.isShiftPressed())
+                    {
+                        message.append((char)0x1b);
+                        message.append((char)0x49);
+                    }
+                    else
+                        message.append((char)key_code);
+                    break;
+            case 46:
+            case 63:    message.append((char)key_code);
+                        break;
+            case 127:    //sending delete code (0x7f) doesn't command Wyse60 to delete a character, we have to
+                        //send ESC W
+                        message.append((char) 0x1b); //ESC
+                        message.append((char) 0x87); //'W'
+                        break;
+            default:    if ((key_code >= 131) && (key_code <= 142))
+                        {
+                    if (key_code == 131)
+                        Log.d(TAG, "dispatchKeyEvent: /*---------------keyboard-----------------------*/");
 
-            //I don't think Wyse60 understands CTRL-Fx or ALT-Fx keys
-            if (event.isCtrlPressed() || event.isAltPressed())
-                return false;
+                    //I don't think Wyse60 understands CTRL-Fx or ALT-Fx keys
+                    if (event.isCtrlPressed() || event.isAltPressed())
+                        return false;
 
-            message.append((char) 0x01);
-            message.append((char) (0x40 + (key_code - 131)));
-            Log.d(TAG, "dispatchKeyEvent: " + Integer.toHexString((char) 0x40 + (key_code - 131)));
+                    message.append((char) 0x01);
+                    message.append((char) (0x40 + (key_code - 131)));
+                    Log.d(TAG, "dispatchKeyEvent: " + Integer.toHexString((char) 0x40 + (key_code - 131)));
 
-            if (event.isShiftPressed())
-            {
-                Log.d(TAG, "dispatchKeyEvent: SHIFT + F-Key pressed");
-                message.setCharAt(1, (char) (message.charAt(1) | 0x20));
-            }
+                    if (event.isShiftPressed())
+                    {
+                        Log.d(TAG, "dispatchKeyEvent: SHIFT + F-Key pressed");
+                        message.setCharAt(1, (char) (message.charAt(1) | 0x20));
+                    }
 
-            message.append((char) 0x0d);
-        }
-        else if (key_code == 127) //delete key pressed
-        {   //sending delete code (0x7f) doesn't command Wyse60 to delete a character, we have to
-            //send ESC W
-            message.append((char) 0x1b); //ESC
-            message.append((char) 0x87); //'W'
-        }
-        else if (key_code == 4) //KEYCODE_BACK
-        {
-            //if we don't intercept the back key code, '4' is sent to the bluetooth stream
-            //let's send ESC to go back a page
-            message.append((char)0x1b);
-        }
-        else if (key_code == 9) //tab key
-        {
-            if (event.isShiftPressed())
-            {
-                message.append((char)0x1b);
-                message.append((char)0x49);
-            }
-            else
-                message.append((char)key_code);
-        }
-        else
-        {
-            Log.d(TAG, "dispatchKeyEvent: unicodeChar: " + event.getUnicodeChar());
-            if (event.isShiftPressed())
-            {
-                Log.d(TAG, "dispatchKeyEvent: SHIFT pressed");
-                key_code &= 0x5f;
-            }
-            if (event.isAltPressed())
-            {
-                key_code &= 0x3f;
-                Log.d(TAG, "dispatchKeyEvent: ALT pressed");
-            }
-            if (event.isCtrlPressed())
-            {
-                key_code &= 0x1f;
-                Log.d(TAG, "dispatchKeyEvent: CTRL pressed");
-            }
-            message.append((char)key_code);
+                    message.append((char) 0x0d);
+                }
+                        else
+                        {
+                            Log.d(TAG, "dispatchKeyEvent: unicodeChar: " + event.getUnicodeChar());
+                            if (event.isShiftPressed())
+                            {
+                                Log.d(TAG, "dispatchKeyEvent: SHIFT pressed");
+                                key_code &= 0x5f;
+                            }
+                            if (event.isAltPressed())
+                            {
+                                key_code &= 0x3f;
+                                Log.d(TAG, "dispatchKeyEvent: ALT pressed");
+                            }
+                            if (event.isCtrlPressed())
+                            {
+                                key_code &= 0x1f;
+                                Log.d(TAG, "dispatchKeyEvent: CTRL pressed");
+                            }
+                            message.append((char)key_code);
+                        }
         }
 
         m_bluetooth_connection.write(message.toString());

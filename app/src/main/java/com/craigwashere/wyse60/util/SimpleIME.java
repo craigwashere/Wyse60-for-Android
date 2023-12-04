@@ -35,6 +35,19 @@ public class SimpleIME extends InputMethodService implements KeyboardView.OnKeyb
         return m_keyboard_view;
     }
 
+    private class _punct_key
+    {
+        public CharSequence next;
+        public CharSequence current;
+        public int codes[];
+        _punct_key(boolean shift)
+        {
+            current = (shift) ? "." : "?";
+            next = (shift) ? "?" : ".";
+            codes = new int[]{(shift) ? 63 : 46};
+        }
+    }
+
     @Override
     public void onKey(int primaryCode, int[] keyCodes)
     {
@@ -49,6 +62,15 @@ public class SimpleIME extends InputMethodService implements KeyboardView.OnKeyb
                                             if (m_keyboard_view.getKeyboard() == m_qwerty_keyboard)
                                             {
                                                 m_qwerty_keyboard.setShifted(SHIFT_is_checked);
+                                                _punct_key punct = new _punct_key(SHIFT_is_checked);
+                                                for (Keyboard.Key key: m_qwerty_keyboard.getKeys())
+                                                {
+                                                    if((key.label != null) && (key.label.toString().equals(punct.current)))
+                                                    {
+                                                        key.label = punct.next;
+                                                        key.codes = punct.codes;
+                                                    }
+                                                }
                                                 m_keyboard_view.invalidateAllKeys();
                                             }
                                             break;
