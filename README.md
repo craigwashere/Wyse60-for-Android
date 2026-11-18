@@ -9,8 +9,10 @@ This is a Wyse60 Emulator for Android. Right now, it's hard coded to initially c
 
 5.25.2023: drawing pages and using a system keyboard. I will look into converting to an in-app keyboard in the future. Apparently, I need to update the bluetooth system as most of it is on the verge deprecation, if they're not deprecated already
 
+11.17.2026 in-app keyboard
+
 TODO:
-  1. Keyboard [system keyboard](https://youtu.be/Za2E_1_mtyc)
+  1. ~~update bluetoothKeyboard [system keyboard](https://youtu.be/Za2E_1_mtyc)~~
   2. update bluetooth
   3. LocalBroadCastManager -> MVVM
   4. Options Menu

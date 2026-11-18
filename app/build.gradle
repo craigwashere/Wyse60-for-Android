@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 //apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 33
+    compileSdk 37
     defaultConfig {
         applicationId "com.craigwashere.wyse60"
         minSdkVersion 23
@@ -24,6 +24,7 @@ android {
         dataBinding true
     }
     namespace 'com.craigwashere.wyse60'
+    compileSdkMinor 0
 }
 
 dependencies {

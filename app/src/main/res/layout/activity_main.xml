@@ -38,7 +38,8 @@
                 android:layout_height="350dp"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent"/>
+                app:layout_constraintTop_toTopOf="parent"
+            />
 
             <!--
             <EditText
@@ -49,16 +50,17 @@
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/main_view"
                 android:inputType="text" />
+            -->
 
-
-            <com.craigwashere.wyse60.util.SimpleIME
+            <android.inputmethodservice.KeyboardView
                 android:id="@+id/customKeyboardView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_alignParentBottom="true"
+                android:keyPreviewLayout="@layout/preview"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/main_view" />
-            -->
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+            />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
